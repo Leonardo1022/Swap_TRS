@@ -1,7 +1,6 @@
 # Parte de base
 
 import streamlit as st
-import yfinance as yf
 #uv run streamlit run main.py
 
 # Streamlit

@@ -26,6 +26,7 @@ con_id INTEGER NOT NULL, --PK,FK
 bo_ticker TEXT NOT NULL, --PK,FK
 bo_bolsa TEXT NOT NULL, --PK,FK
 ac_qtd INTEGER,
+ac_mont INTEGER, --dividir por 100
 CONSTRAINT fk_Acao_con_id FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE,
 CONSTRAINT fk_Acao_Bolsa FOREIGN KEY(bo_ticker, bo_bolsa)
