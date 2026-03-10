@@ -5,6 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "streamlit>=1.54.0",
+    "streamlit>=1.55.0",
     "yfinance>=1.2.0",
 ]
