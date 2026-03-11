@@ -1,8 +1,14 @@
 import streamlit as st
 from database import Database
+import yfinance as yf
+import datetime as dt
 
 if "mostrar_form" not in st.session_state:
     st.session_state["mostrar_form"] = False
+
+def preco_acao_data(ticker, data):
+    dados = yf.download(ticker, start=data, end=data + dt.timedelta(days=1))
+    return dados["Open"].iloc[0]
 
 def st_trocar_form():
     st.session_state["mostrar_form"] = not st.session_state["mostrar_form"]
@@ -11,12 +17,19 @@ def st_enviar_form():
     if not st.session_state["ticker_ms"]:
         st.error("Não foi registrado nenhum ticker!")
     else:
-        st.success("Contrato adicionado com sucesso!")
-        st_trocar_form()
         d = Database("swap.db")
-        #Alterar para st., alterar o metodo para atualizar a arquitetura do banco
-        d.inserir_contrato(montante_c, dt_compra_c, duracao_c, indexador_c, spread_c)
+        montante_total = 0
+        for montante in st.session_state["ticker_ms"]:
+            montante_total += st.session_state[f"montante_{montante}"]
+
+        d.inserir_contrato(
+            montante_total, st.session_state["data_di"], st.session_state["duracao_ni"],
+            st.session_state["indexador_sb"], st.session_state["spread_ni"])
+        contrato_id = d.selecionar_ultimo_contrato()
+        for t in st.session_state["ticker_ms"]:
+            d.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
         d.fechar()
+        st.success("Contrato adicionado com sucesso!")
 
 
 lista_bolsa = ["B3", "NASDAQ"]
@@ -31,6 +44,7 @@ st.button("Adicionar contrato", on_click=st_trocar_form)
 
 enviado = False
 if st.session_state.mostrar_form:
+    st.date_input("Coloque a data de início", key="data_di", format="DD/MM/YYYY")
     st.selectbox("Selecione a Bolsa", lista_bolsa, key="bolsa_sb", index=None, placeholder="")
 
     if st.session_state["bolsa_sb"] == "B3":
@@ -43,11 +57,11 @@ if st.session_state.mostrar_form:
     st.multiselect("Selecione o Ticker", lista_ticker, placeholder="", accept_new_options=True, key="ticker_ms", disabled=(lista_ticker is None))
     for ticker in st.session_state["ticker_ms"]:
         st.number_input(f"Quantidade de ações de {ticker}", min_value=0, key=f"qtd_compra_{ticker}")
-        st.number_input(f"Valor do montante de {ticker}", min_value=0.00, key=f"montante_{ticker}")
-    dt_compra_c = st.date_input("Coloque a data de início", format="DD/MM/YYYY")
-    duracao_c = st.number_input("Duração do contrato em meses", min_value=0)
+        st.number_input(f"Valor do montante de {ticker}", min_value=0.00, key=f"montante_{ticker}", value=(preco_acao_data(ticker, st.session_state["data_di"])*st.session_state[f"qtd_compra_{ticker}"]))
+    st.number_input("Duração do contrato em meses", min_value=0, key="duracao_ni")
     st.write("Taxas")
-    indexador_c = st.selectbox("Selecione o indexador", ["CDI", "SELIC"], index=None, placeholder="")
+    st.selectbox("Selecione o indexador", ["CDI", "SELIC"], index=None, placeholder="", key="indexador_sb")
     st.number_input("Spread em (%)", min_value=0.0, key="spread_ni")
-    if st.session_state["spread_ni"] != 0:
-        st.button("Adicionar", on_click=st_trocar_form)
+    if st.button("Adicionar", disabled=(st.session_state["spread_ni"] == 0)):
+        st_enviar_form()
+        st_trocar_form()

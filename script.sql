@@ -1,5 +1,5 @@
 -- BEGIN TRANSACTION;
--- PRAGMA foreign_keys = ON;
+PRAGMA foreign_keys = ON;
 DROP TABLE IF EXISTS Bolsa;
 DROP TABLE IF EXISTS Contrato;
 DROP TABLE IF EXISTS Acao;
@@ -73,40 +73,9 @@ BEGIN
             THEN RAISE(ABORT, 'Quantidade vendida maior que a disponível')
         END;
 END;
-
-/* Popular */
---Bolsa
-INSERT INTO Bolsa(bo_ticker, bo_bolsa)
-VALUES('PETR4', 'B3');
-INSERT INTO Bolsa(bo_ticker, bo_bolsa)
-VALUES('VALE3', 'B3');
-INSERT INTO Bolsa(bo_ticker, bo_bolsa)
-VALUES('NVDA', 'NASDAQ');
---Contrato
-/*INSERT INTO Contrato(con_mont, con_data, con_dur, con_ind, con_spd)
-VALUES (5000000, '2025-01-10', 12, 'CDI', 200);
-INSERT INTO Contrato(con_mont, con_data, con_dur, con_ind, con_spd)
-VALUES (3000000, '2025-02-15', 6, 'SELIC', 150);
-INSERT INTO Contrato(con_mont, con_data, con_dur, con_ind, con_spd)
-VALUES (2000000, '2025-02-15', 12, 'SELIC', 150);
---Acao
-INSERT INTO Acao(con_id, bo_bolsa, bo_ticker, ac_qtd)
-VALUES (1, 'B3', 'PETR4', 300);
-INSERT INTO Acao(con_id, bo_bolsa, bo_ticker, ac_qtd)
-VALUES (1, 'B3', 'VALE3', 200);
-INSERT INTO Acao(con_id, bo_bolsa, bo_ticker, ac_qtd)
-VALUES (2, 'NASDAQ', 'NVDA', 50);
---Venda
-INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_vlr, ven_data)
-VALUES (1, 'PETR4', 'B3', 100, 320000, '2025-03-10');
-INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_vlr, ven_data)
-VALUES (1, 'VALE3', 'B3', 50, 280000, '2025-03-15');
-INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_vlr, ven_data)
-VALUES (2, 'NVDA', 'NASDAQ', 10, 150000, '2025-03-20');
--- COMMIT;
+/*
+INSERT INTO Bolsa VALUES ('PETR4', 'B3');
+INSERT INTO Bolsa VALUES ('VALE3', 'B3');
+INSERT INTO Bolsa VALUES ('NVDA', 'NASDAQ');
+INSERT INTO Bolsa VALUES ('MSFT', 'NASDAQ');
  */
-
-/* Display all the records from the table */
--- SELECT * FROM Contrato;
---SELECT * FROM Acao;
---SELECT * FROM Venda;

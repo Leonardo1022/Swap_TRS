@@ -21,7 +21,7 @@ class Database:
             self.conn.close()
             print("Conexão encerrada")
 
-    def criar_tabelas(self, caminho_sql: str):
+    def executar_script(self, caminho_sql: str):
         if self.conn is None:
             print("Conexão não estabelecida")
             return
@@ -45,13 +45,13 @@ class Database:
             print(f"Erro ao inserir contrato: {e}")
             return None
 
-    def inserir_acao(self, contrato, ticker, bolsa, quantidade):
+    def inserir_acao(self, contrato, ticker, bolsa, quantidade, montante):
         try:
-            sql_insert = """INSERT INTO Acao(con_id, bo_ticker, bo_bolsa, ac_qtd)
-                            VALUES (?, ?, ?, ?)"""
-            self.conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade))
+            sql_insert = """INSERT INTO Acao(con_id, bo_ticker, bo_bolsa, ac_qtd, ac_mont)
+                            VALUES (?, ?, ?, ?, ?)"""
+            self.conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade, montante))
             self.conn.commit()
-            print(f"Ação adicionada: {ticker} ({quantidade})")
+            print(f"Ação adicionada: {ticker} (quantidade: {quantidade}, montante: {montante})")
         except Error as e:
             print(f"Erro ao inserir acao: {e}")
 
@@ -82,3 +82,15 @@ class Database:
             return [row[0] for row in rows]  # retorna uma lista de tickers
         except Error as e:
             print(f"Erro ao selecionar bolsa: {e}")
+
+    def selecionar_ultimo_contrato(self):
+        try:
+            sql_query = """SELECT con_id \
+                            FROM Contrato \
+                            ORDER BY con_id DESC \
+                            LIMIT 1;"""
+            query = self.conn.execute(sql_query)
+            row = query.fetchone()
+            return row[0] if row else None
+        except Error as e:
+            print(f"Erro ao selecionar contrato: {e}")
