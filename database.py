@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Error, IntegrityError
-
+#Corrigie em relação as alterações feitas na modelagem do db
 class Database:
     def __init__(self, db_file: str):
         self.db_file = db_file
@@ -82,3 +82,7 @@ class Database:
             return [row[0] for row in rows]  # retorna uma lista de tickers
         except Error as e:
             print(f"Erro ao selecionar bolsa: {e}")
+
+    def renda_total(self):
+        try:
+            sql_query = """SELECT con_total \"""
