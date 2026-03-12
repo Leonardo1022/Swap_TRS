@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Error, IntegrityError
-
+#Corrigie em relação as alterações feitas na modelagem do db
 class Database:
     def __init__(self, db_file: str):
         self.db_file = db_file
