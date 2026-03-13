@@ -35,6 +35,16 @@ def inserir_contrato(montante: float, data: int, duracao: int):
         print(f"Erro ao inserir contrato: {e}")
         return None
 
+def inserir_taxa(contrato: int, indexador: str, spread: float):
+    sql_insert = """INSERT INTO Taxa(con_id, ind_indexador, ta_spread) 
+                    VALUES(?, ?, ?)"""
+    try:
+        with conectar() as conn:
+            cursor = conn.execute(sql_insert, (contrato, indexador, spread))
+            print("Taxa adicionada")
+    except Error as e:
+        print(f"Erro ao inserir taxa: {e}")
+
 def inserir_acao(contrato, bolsa, ticker, quantidade, montante):
     sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_qtd, ac_mont)
                     VALUES (?, ?, ?, ?, ?)"""

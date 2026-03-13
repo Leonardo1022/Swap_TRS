@@ -20,13 +20,14 @@ def st_enviar_form():
     if not st.session_state["ticker_ms"]:
         st.error("Não foi registrado nenhum ticker!")
     else:
-        montante_total = 0
+        montante_total = 0.00
         for montante in st.session_state["ticker_ms"]:
             montante_total += st.session_state[f"montante_{montante}"]
 
         contrato_id = db.inserir_contrato(
             montante_total, st.session_state["data_di"], st.session_state["duracao_ni"])
-        #Inserir também a taxa
+
+        db.inserir_taxa(contrato_id, st.session_state["indexador_sb"], st.session_state["spread_ni"])
         for t in st.session_state["ticker_ms"]:
             db.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
         st.success("Contrato adicionado com sucesso!")

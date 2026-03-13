@@ -21,3 +21,5 @@ with top_esq_con:
     sub_layout_sup = st.columns(2)
     sub_layout_sup[0].metric("Balanço geral", f"R${st.session_state["lucro_total"]}")
     sub_layout_sup[1].metric("Custo mensal previsto", f"R${st.session_state["custo_total_mensal"]}", width="content")
+
+st.title("Contratos")
