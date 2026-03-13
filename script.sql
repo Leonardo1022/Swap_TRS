@@ -54,19 +54,19 @@ CONSTRAINT fk_Acao_Contrato FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE,
 CONSTRAINT fk_Acao_Ticker FOREIGN KEY(bo_bolsa, ti_ticker)
 REFERENCES Ticker(bo_bolsa, ti_ticker) ON DELETE CASCADE,
-CONSTRAINT pk_Acao PRIMARY KEY(con_id, ti_ticker, bo_bolsa)
+CONSTRAINT pk_Acao PRIMARY KEY(con_id, bo_bolsa, ti_ticker)
 );
 
 CREATE TABLE IF NOT EXISTS Venda(
 ven_id INTEGER CONSTRAINT pk_ven_id PRIMARY KEY AUTOINCREMENT, --PK
 con_id INTEGER, --FK
-ti_ticker TEXT, --FK
 bo_bolsa TEXT, --FK
+ti_ticker TEXT, --FK
 ven_qtd INTEGER NOT NULL,
 ven_valor REAL NOT NULL, --moeda
 ven_data DATE DEFAULT CURRENT_DATE,
-CONSTRAINT fk_Venda_Acao FOREIGN KEY(con_id, ti_ticker, bo_bolsa)
-REFERENCES Acao(con_id, ti_ticker, bo_bolsa) ON DELETE CASCADE
+CONSTRAINT fk_Venda_Acao FOREIGN KEY(con_id, bo_bolsa, ti_ticker)
+REFERENCES Acao(con_id, bo_bolsa, ti_ticker) ON DELETE CASCADE
 );
 
 /* Triggers */

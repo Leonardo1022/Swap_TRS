@@ -1,10 +1,13 @@
 import streamlit as st
-from database import Database
+import database as db
 import yfinance as yf
 import datetime as dt
 
 if "mostrar_form" not in st.session_state:
     st.session_state["mostrar_form"] = False
+elif "lista_bolsa" not in st.session_state:
+    lista_bolsa = db.selecionar_bolsas()
+    st.session_state["lista_bolsa"] = lista_bolsa
 
 def preco_acao_data(ticker, data):
     dados = yf.download(ticker, start=data, end=data + dt.timedelta(days=1))
@@ -17,27 +20,19 @@ def st_enviar_form():
     if not st.session_state["ticker_ms"]:
         st.error("Não foi registrado nenhum ticker!")
     else:
-        d = Database("swap.db")
         montante_total = 0
         for montante in st.session_state["ticker_ms"]:
             montante_total += st.session_state[f"montante_{montante}"]
 
-        d.inserir_contrato(
-            montante_total, st.session_state["data_di"], st.session_state["duracao_ni"],
-            st.session_state["indexador_sb"], st.session_state["spread_ni"])
-        contrato_id = d.selecionar_ultimo_contrato()
+        contrato_id = db.inserir_contrato(
+            montante_total, st.session_state["data_di"], st.session_state["duracao_ni"])
+        #Inserir também a taxa
         for t in st.session_state["ticker_ms"]:
-            d.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
-        d.fechar()
+            db.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
         st.success("Contrato adicionado com sucesso!")
 
-
-lista_bolsa = ["B3", "NASDAQ"]
-lista_ticker = []
-lista_ticker_b3 = ["PETR4", "VALE3"]
-lista_ticker_nasdaq = ["NVDA", "MSFT"]
-
 st.title("Contratos")
+""
 st.write("Adicionar contrato")
 
 st.button("Adicionar contrato", on_click=st_trocar_form)

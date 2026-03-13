@@ -1,119 +1,112 @@
 import sqlite3
-from sqlite3 import Error, IntegrityError
-#Corrigie em relação as alterações feitas na modelagem do db
-class Database:
-    def __init__(self, db_file: str):
-        self.db_file = db_file
-        self.conn = None
-        self.conectar()
+from sqlite3 import Error, IntegrityError, Row
+#Corrigir em relação as alterações feitas na modelagem do db
 
-    def conectar(self):
-        try:
-            self.conn = sqlite3.connect(self.db_file)
-            self.conn.execute("PRAGMA foreign_keys = ON")
-            print(f"Conectado a base de dados: {self.db_file}")
-        except Error as e:
-            print(f"Erro ao se conectar: {e}")
-            self.conn = None
+arquivo_bd = "swap.db"
 
-    def fechar(self):
-        if self.conn:
-            self.conn.close()
-            print("Conexão encerrada")
 
-    def executar_script(self, caminho_sql: str):
-        if self.conn is None:
-            print("Conexão não estabelecida")
-            return
-        try:
-            with open(caminho_sql, 'r') as f:
-                sql_script = f.read()
-            self.conn.executescript(sql_script)
+def conectar():
+    conn = sqlite3.connect(arquivo_bd)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.row_factory = Row
+    return conn
+
+def executar_script(caminho_sql):
+    try:
+        with open(caminho_sql, 'r', encoding='utf-8') as f:
+            sql_script = f.read()
+        with conectar() as conn:
+            conn.executescript(sql_script)
             print("Tabelas criadas")
-        except Error as e:
-            print(f"Erro ao criar tabelas: {e}")
+    except FileNotFoundError:
+        print("Arquivo SQL não encontrado")
+    except Error as e:
+        print(f"Erro ao criar tabelas: {e}")
 
-    def inserir_contrato(self, montante, data, duracao, indexador, spread):
-        try:
-            sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_dur)
-                            VALUES (?, ?, ?, ?, ?)"""
-            cursor = self.conn.execute(sql_insert, (montante, data, duracao, indexador, spread))
-            self.conn.commit()
+def inserir_contrato(montante: float, data: int, duracao: int):
+    sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_dur)
+                    VALUES (?, ?, ?)"""
+    try:
+        with conectar() as conn:
+            cursor = conn.execute(sql_insert, (montante, data, duracao))
             print(f"Contrato adicionado: ID {cursor.lastrowid}")
             return cursor.lastrowid
-        except Error as e:
-            print(f"Erro ao inserir contrato: {e}")
-            return None
+    except Error as e:
+        print(f"Erro ao inserir contrato: {e}")
+        return None
 
-    def inserir_acao(self, contrato, ticker, bolsa, quantidade, montante):
-        try:
-            sql_insert = """INSERT INTO Acao(con_id, bo_ticker, bo_bolsa, ac_qtd, ac_mont)
-                            VALUES (?, ?, ?, ?, ?)"""
-            self.conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade, montante))
-            self.conn.commit()
+def inserir_acao(contrato, bolsa, ticker, quantidade, montante):
+    sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_qtd, ac_mont)
+                    VALUES (?, ?, ?, ?, ?)"""
+    try:
+        with conectar() as conn:
+            conn.execute(sql_insert, (contrato, bolsa, ticker, quantidade, montante))
             print(f"Ação adicionada: {ticker} (quantidade: {quantidade}, montante: {montante})")
-        except Error as e:
-            print(f"Erro ao inserir acao: {e}")
+    except Error as e:
+        print(f"Erro ao inserir acao: {e}")
 
-    def inserir_venda(self, contrato, ticker, bolsa, quantidade, valor, data):
-        try:
-            sql_insert = """INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_valor, ven_data)
-                            VALUES (?, ?, ?, ?, ?, ?)"""
-            self.conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade, valor, data))
-            self.conn.commit()
+def inserir_venda(contrato, bolsa, ticker, quantidade, valor, data):
+    sql_insert = """INSERT INTO Venda(con_id, bo_bolsa, ti_ticker, ven_qtd, ven_valor, ven_data)
+                    VALUES (?, ?, ?, ?, ?, ?)"""
+    try:
+        with conectar() as conn:
+            conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade, valor, data))
+            conn.commit()
             print(f"Venda adicionada: {quantidade} {ticker} em {bolsa}")
-        except IntegrityError as e:
-            if "Quantidade vendida maior" in str(e):
-                print(f"Erro: não é possível vender {ticker} ({quantidade}). Quantidade excede a disponível.")
-            else:
-                print(f"Erro de integridade: {e}")
-        except Error as e:
-            print(f"Erro ao inserir venda: {e}")
+    except IntegrityError as e:
+        if "Quantidade vendida maior" in str(e):
+            print(f"Erro: não é possível vender {ticker} ({quantidade}). Quantidade excede a disponível.")
+        else:
+            print(f"Erro de integridade: {e}")
+    except Error as e:
+        print(f"Erro ao inserir venda: {e}")
 
-    def selecionar_tickers(self, bolsa):
-        try:
-            sql_query = """SELECT bo_ticker \
-                           FROM Bolsa \
-                           WHERE bo_bolsa = ?"""
-            query = self.conn.execute(sql_query, (bolsa,))
-            rows = query.fetchall()
-            for row in rows:
-                print(row[0])  # imprime apenas o ticker
-            return [row[0] for row in rows]  # retorna uma lista de tickers
-        except Error as e:
-            print(f"Erro ao selecionar bolsa: {e}")
+def selecionar_tickers(bolsa: str):
+    sql_query = """SELECT ti_ticker 
+                   FROM Ticker 
+                   WHERE bo_bolsa = ?"""
+    try:
+        with conectar() as conn:
+            linhas = conn.execute(sql_query, bolsa).fetchall()
+            return [linha["ti_ticker"] for linha in linhas]
+    except Error as e:
+        print(f"Erro ao selecionar bolsa: {e}")
+        return None
 
-    def selecionar_ultimo_contrato(self):
-        try:
-            sql_query = """SELECT con_id \
-                            FROM Contrato \
-                            ORDER BY con_id DESC \
-                            LIMIT 1;"""
-            query = self.conn.execute(sql_query)
-            row = query.fetchone()
-            return row[0] if row else None
-        except Error as e:
-            print(f"Erro ao selecionar contrato: {e}")
+def selecionar_bolsas():
+    sql_query = "SELECT bo_bolsa FROM Bolsa"
+    try:
+        with conectar() as conn:
+            linhas = conn.execute(sql_query).fetchall()
+            return [linha["bo_bolsa"] for linha in linhas]
+    except Error as e:
+        print(f"Erro ao retornar bolsas: {e}")
+        return None
 
-    def lucro_total(self):
-        try:
-            sql_query = """SELECT ven_valor FROM Venda"""
-            query = self.conn.execute(sql_query)
-            rows = query.fetchall()
-            total = 0
-            for row in rows:
-                total += row[0]
-            return total
-        except Error as e:
-            print(f"Erro ao selecionar venda: {e}")
+def lucro_total():
+    sql_query = """SELECT SUM(ven_valor) AS total 
+                   FROM Venda"""
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query).fetchone()
+            return linha["total"] if linha else 0
+    except Error as e:
+        print(f"Erro ao selecionar lucro: {e}")
+        return None
 
-    def custo_total_mensal(self):
-        try:
-            sql_query = """SELECT ta_spread FROM Taxa"""
-            query = self.conn.execute(sql_query)
-            rows = query.fetchall()
-            total = 0
-            for row in rows:
-
-        except Error as e:
-            print(f"Erro ao selecionar venda: {e}")
+def custo_total_mensal():
+    sql_query = """
+                SELECT SUM(c.con_mont * (t.ta_spread + i.ind_valor)) AS custo_total_mensal 
+                FROM Contrato c 
+                JOIN Taxa t 
+                ON c.con_id = t.con_id
+                JOIN Indexador i
+                ON t.ind_indexador = i.ind_indexador
+                """
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query).fetchone()
+            return linha["custo_total_mensal"] if linha else 0
+    except Error as e:
+        print(f"Erro ao selecionar custo: {e}")
+        return None
