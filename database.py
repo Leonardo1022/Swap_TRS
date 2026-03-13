@@ -35,7 +35,7 @@ class Database:
 
     def inserir_contrato(self, montante, data, duracao, indexador, spread):
         try:
-            sql_insert = """INSERT INTO Contrato(con_mont, con_data, con_dur, con_ind, con_spd)
+            sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_dur)
                             VALUES (?, ?, ?, ?, ?)"""
             cursor = self.conn.execute(sql_insert, (montante, data, duracao, indexador, spread))
             self.conn.commit()
@@ -57,7 +57,7 @@ class Database:
 
     def inserir_venda(self, contrato, ticker, bolsa, quantidade, valor, data):
         try:
-            sql_insert = """INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_vlr, ven_data)
+            sql_insert = """INSERT INTO Venda(con_id, bo_ticker, bo_bolsa, ven_qtd, ven_valor, ven_data)
                             VALUES (?, ?, ?, ?, ?, ?)"""
             self.conn.execute(sql_insert, (contrato, ticker, bolsa, quantidade, valor, data))
             self.conn.commit()
@@ -94,3 +94,26 @@ class Database:
             return row[0] if row else None
         except Error as e:
             print(f"Erro ao selecionar contrato: {e}")
+
+    def lucro_total(self):
+        try:
+            sql_query = """SELECT ven_valor FROM Venda"""
+            query = self.conn.execute(sql_query)
+            rows = query.fetchall()
+            total = 0
+            for row in rows:
+                total += row[0]
+            return total
+        except Error as e:
+            print(f"Erro ao selecionar venda: {e}")
+
+    def custo_total_mensal(self):
+        try:
+            sql_query = """SELECT ta_spread FROM Taxa"""
+            query = self.conn.execute(sql_query)
+            rows = query.fetchall()
+            total = 0
+            for row in rows:
+
+        except Error as e:
+            print(f"Erro ao selecionar venda: {e}")

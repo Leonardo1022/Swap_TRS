@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS Indexador;
 DROP TABLE IF EXISTS Bolsa;
 DROP TABLE IF EXISTS Ticker;
 DROP TABLE IF EXISTS Contrato;
+DROP TABLE IF EXISTS Taxa;
 DROP TABLE IF EXISTS Acao;
 DROP TABLE IF EXISTS Venda;
 
@@ -28,12 +29,18 @@ CONSTRAINT pk_Ticker PRIMARY KEY(bo_bolsa, ti_ticker)
 
 CREATE TABLE IF NOT EXISTS Contrato(
 con_id INTEGER CONSTRAINT pk_con_id PRIMARY KEY AUTOINCREMENT, --PK
-ind_indexador TEXT NOT NULL, --FK
 con_mont REAL, --moeda
-con_data DATE DEFAULT CURRENT_DATE,
-con_dur INTEGER NOT NULL, --mes
-con_spd REAL, --porcentagem
-CONSTRAINT fk_Contrato_Indexador FOREIGN KEY(ind_indexador)
+con_abertura DATE DEFAULT CURRENT_DATE,
+con_dur INTEGER NOT NULL --mes
+);
+
+CREATE TABLE IF NOT EXISTS Taxa(
+con_id INTEGER CONSTRAINT pk_Taxa PRIMARY KEY, --PK,FK
+ind_indexador REAL, --FK
+ta_spread REAL, --porcentagem
+CONSTRAINT fk_Taxa_Contrato FOREIGN KEY(con_id)
+REFERENCES Contrato(con_id) ON DELETE CASCADE,
+CONSTRAINT fk_Taxa_Indexador FOREIGN KEY(ind_indexador)
 REFERENCES Indexador(ind_indexador) ON DELETE CASCADE
 );
 
@@ -56,7 +63,7 @@ con_id INTEGER, --FK
 ti_ticker TEXT, --FK
 bo_bolsa TEXT, --FK
 ven_qtd INTEGER NOT NULL,
-ven_vlr REAL NOT NULL, --moeda
+ven_valor REAL NOT NULL, --moeda
 ven_data DATE DEFAULT CURRENT_DATE,
 CONSTRAINT fk_Venda_Acao FOREIGN KEY(con_id, ti_ticker, bo_bolsa)
 REFERENCES Acao(con_id, ti_ticker, bo_bolsa) ON DELETE CASCADE
