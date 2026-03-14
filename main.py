@@ -1,5 +1,5 @@
 # Parte de base
-
+import database as db
 import streamlit as st
 #uv run streamlit run main.py
 
