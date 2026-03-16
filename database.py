@@ -93,6 +93,26 @@ def selecionar_bolsas():
         print(f"Erro ao retornar bolsas: {e}")
         return None
 
+def selecionar_acao(contrato: int):
+    sql_query = """SELECT ti_ticker FROM Acao WHERE con_id = ?"""
+    try:
+        with conectar() as conn:
+            linhas = conn.execute(sql_query, (contrato,)).fetchall()
+            return [linha["ti_ticker"] for linha in linhas]
+    except Error as e:
+        print(f"Erro ao selecionar acao: {e}")
+        return None
+
+def selecionar_contratos():
+    sql_query = "SELECT con_id FROM Contrato"
+    try:
+        with conectar() as conn:
+            linhas = conn.execute(sql_query).fetchall()
+            return [linha["con_id"] for linha in linhas]
+    except Error as e:
+        print(f"Erro ao selecionar contratos: {e}")
+        return None
+
 def lucro_total():
     sql_query = """SELECT SUM(ven_valor) AS total 
                    FROM Venda"""
@@ -103,6 +123,9 @@ def lucro_total():
     except Error as e:
         print(f"Erro ao selecionar lucro: {e}")
         return None
+
+def custo_mensal_contrato(contrat: int):
+
 
 def custo_total_mensal():
     sql_query = """
