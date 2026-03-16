@@ -23,7 +23,7 @@ def executar_script(caminho_sql):
     except Error as e:
         print(f"Erro ao criar tabelas: {e}")
 
-def inserir_contrato(montante: float, data: int, duracao: int):
+def inserir_contrato(montante: float, data: str, duracao: int):
     sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_dur)
                     VALUES (?, ?, ?)"""
     try:
@@ -45,7 +45,7 @@ def inserir_taxa(contrato: int, indexador: str, spread: float):
     except Error as e:
         print(f"Erro ao inserir taxa: {e}")
 
-def inserir_acao(contrato, bolsa, ticker, quantidade, montante):
+def inserir_acao(contrato: int, bolsa: str, ticker: str, quantidade: int, montante: float):
     sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_qtd, ac_mont)
                     VALUES (?, ?, ?, ?, ?)"""
     try:
@@ -55,7 +55,7 @@ def inserir_acao(contrato, bolsa, ticker, quantidade, montante):
     except Error as e:
         print(f"Erro ao inserir acao: {e}")
 
-def inserir_venda(contrato, bolsa, ticker, quantidade, valor, data):
+def inserir_venda(contrato: int, bolsa: str, ticker: str, quantidade: int, valor: float, data: str):
     sql_insert = """INSERT INTO Venda(con_id, bo_bolsa, ti_ticker, ven_qtd, ven_valor, ven_data)
                     VALUES (?, ?, ?, ?, ?, ?)"""
     try:
@@ -77,7 +77,7 @@ def selecionar_tickers(bolsa: str):
                    WHERE bo_bolsa = ?"""
     try:
         with conectar() as conn:
-            linhas = conn.execute(sql_query, bolsa).fetchall()
+            linhas = conn.execute(sql_query, (bolsa,)).fetchall()
             return [linha["ti_ticker"] for linha in linhas]
     except Error as e:
         print(f"Erro ao selecionar bolsa: {e}")
@@ -88,6 +88,7 @@ def selecionar_bolsas():
     try:
         with conectar() as conn:
             linhas = conn.execute(sql_query).fetchall()
+            print("sucesso")
             return [linha["bo_bolsa"] for linha in linhas]
     except Error as e:
         print(f"Erro ao retornar bolsas: {e}")
