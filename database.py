@@ -46,7 +46,7 @@ def inserir_taxa(contrato: int, indexador: str, spread: float):
         print(f"Erro ao inserir taxa: {e}")
 
 def inserir_acao(contrato: int, bolsa: str, ticker: str, quantidade: int, montante: float):
-    sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_qtd, ac_mont)
+    sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_qtd, ac_montante)
                     VALUES (?, ?, ?, ?, ?)"""
     try:
         with conectar() as conn:
@@ -70,6 +70,19 @@ def inserir_venda(contrato: int, bolsa: str, ticker: str, quantidade: int, valor
             print(f"Erro de integridade: {e}")
     except Error as e:
         print(f"Erro ao inserir venda: {e}")
+
+def inserir_resultado(contrato: int, re_data: int, re_lucro: float, re_custo: float, re_montante: float):
+    sql_insert = """
+                 INSERT INTO Resultado(con_id, re_data, re_lucro, re_custo, re_montante)
+                 VALUES (?, ?, ?, ?, ?);
+                 """
+    try:
+        with conectar() as conn:
+            conn.execute(sql_insert, (contrato, re_data, re_lucro, re_custo, re_montante))
+            conn.commit()
+            print(f"Resultado adicionado (contrato:{contrato}, data:{re_data}, lucro:{re_lucro}, custo:{re_custo}, montante:{re_montante})")
+    except Error as e:
+        print(f"Erro ao inserir resultado: {e}")
 
 def selecionar_tickers(bolsa: str):
     sql_query = """SELECT ti_ticker 
@@ -104,29 +117,70 @@ def selecionar_acao(contrato: int):
         print(f"Erro ao selecionar acao: {e}")
         return None
 
-def selecionar_contratos():
+def selecionar_contrato_id():
     sql_query = "SELECT con_id FROM Contrato"
     try:
         with conectar() as conn:
             linhas = conn.execute(sql_query).fetchall()
             return [linha["con_id"] for linha in linhas]
     except Error as e:
-        print(f"Erro ao selecionar contratos: {e}")
+        print(f"Erro ao selecionar id dos contratos: {e}")
+        return None
+
+def selecionar_contrato(contrato: int):
+    sql_query = "SELECT * FROM Contrato WHERE con_id = ?"
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query, (contrato,)).fetchone()
+            return dict(linha) if linha else {}
+    except Error as e:
+        print(f"Erro ao selecionar contrato: {e}")
         return None
 
 def lucro_total():
-    sql_query = """SELECT SUM(ven_valor) AS total 
+    sql_query = """SELECT COALESCE(SUM(ven_valor), 0.00) AS total 
                    FROM Venda"""
     try:
         with conectar() as conn:
             linha = conn.execute(sql_query).fetchone()
-            return linha["total"] if linha else 0
+            return linha["total"] if linha else 0.00
     except Error as e:
         print(f"Erro ao selecionar lucro: {e}")
         return None
 
-def custo_mensal_contrato(contrat: int):
+def custo_mensal_contrato(contrato: int, data: str):
+    sql_query = """
+                SELECT c.con_mont * (t.ta_spread + i.ind_valor) AS custo_mensal 
+                FROM Contrato c 
+                JOIN Taxa t 
+                ON c.con_id = t.con_id
+                JOIN Indexador i
+                ON t.ind_indexador = i.ind_indexador
+                WHERE c.con_id = ?
+                """
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query, (contrato,)).fetchone()
+            return linha["custo_mensal"] if linha else 0
+    except Error as e:
+        print(f"Erro ao selecionar custo mensal: {e}")
+        return None
 
+def lucro_mensal_contrato(contrato: int, data: str):
+    sql_query = """
+                SELECT SUM(re_lucro) AS lucro_mensal
+                FROM Resultado WHERE con_id = ?
+                """
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query, (contrato,)).fetchone()
+            return linha["lucro_mensal"] if linha else 0
+    except Error as e:
+        print(f"Erro ao selecionar lucro mensal: {e}")
+        return 0
+
+def resultado_mensal_contrato(contrato: int, data: str):
+    sql_query = """"""
 
 def custo_total_mensal():
     sql_query = """
@@ -144,3 +198,6 @@ def custo_total_mensal():
     except Error as e:
         print(f"Erro ao selecionar custo: {e}")
         return None
+
+#Definir um jeito de colocar uma forma de automatizar "Resultado" para ser ativado ou mensalmente
+#Ou ter um jeito de fazer as coisas
