@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS Contrato(
 con_id INTEGER CONSTRAINT pk_con_id PRIMARY KEY AUTOINCREMENT, --PK
 con_mont REAL, --moeda
 con_abertura DATE DEFAULT CURRENT_DATE, --AAAA/MM/DD
-con_dur INTEGER NOT NULL, --mes
+con_duracao INTEGER NOT NULL, --mes
 con_status INTEGER DEFAULT 1
 );
 
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS Acao(
 con_id INTEGER, --PK,FK
 bo_bolsa TEXT, --PK,FK
 ti_ticker TEXT, --PK,FK
-ac_qtd INTEGER NOT NULL,
+ac_quantidade INTEGER NOT NULL,
 ac_montante REAL NOT NULL, --moeda
 CONSTRAINT fk_Acao_Contrato FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE,
@@ -71,18 +71,19 @@ REFERENCES Ticker(bo_bolsa, ti_ticker) ON DELETE CASCADE,
 CONSTRAINT pk_Acao PRIMARY KEY(con_id, bo_bolsa, ti_ticker)
 );
 
-CREATE TABLE IF NOT EXISTS Venda(
-ven_id INTEGER CONSTRAINT pk_ven_id PRIMARY KEY AUTOINCREMENT, --PK
+CREATE TABLE IF NOT EXISTS Movimentacao(
+mov_id INTEGER CONSTRAINT pk_Movimentacao PRIMARY KEY AUTOINCREMENT, --PK
 con_id INTEGER, --FK
 bo_bolsa TEXT, --FK
 ti_ticker TEXT, --FK
-ven_qtd INTEGER NOT NULL,
-ven_valor REAL NOT NULL, --moeda
-ven_data DATE DEFAULT CURRENT_DATE,
-CONSTRAINT fk_Venda_Acao FOREIGN KEY(con_id, bo_bolsa, ti_ticker)
+mov_quantidade INTEGER NOT NULL,
+mov_valor REAL NOT NULL, --moeda
+mov_data DATE DEFAULT CURRENT_DATE,
+mov_e_venda INTEGER NOT NULL, --Venda ou compra
+CONSTRAINT fk_Movimentacao_Acao FOREIGN KEY(con_id, bo_bolsa, ti_ticker)
 REFERENCES Acao(con_id, bo_bolsa, ti_ticker) ON DELETE CASCADE
 );
-
+--Arrumar
 /* Triggers */
 CREATE TRIGGER IF NOT EXISTS trg_verifica_venda
 BEFORE INSERT ON Venda
@@ -92,16 +93,16 @@ BEGIN
         CASE
             WHEN (
                 (
-                    SELECT COALESCE(SUM(ven_qtd), 0)
+                    SELECT COALESCE(SUM(ven_quantidade), 0)
                     FROM Venda
                     WHERE con_id = NEW.con_id
                       AND bo_bolsa = NEW.bo_bolsa
                       AND ti_ticker = NEW.ti_ticker
                 )
-                + NEW.ven_qtd
+                + NEW.ven_quantidade
             ) >
             (
-                SELECT ac_qtd
+                SELECT ac_quantidade
                 FROM Acao
                 WHERE con_id = NEW.con_id
                   AND bo_bolsa = NEW.bo_bolsa

@@ -2,6 +2,7 @@ import streamlit as st
 import database as db
 import yfinance as yf
 import datetime as dt
+from datetime import datetime
 
 if "mostrar_form" not in st.session_state:
     st.session_state["mostrar_form"] = False
@@ -12,13 +13,19 @@ def inicializacao():
     print(lista_bolsa)
     return lista_bolsa
 
+contratos_id = db.selecionar_contrato_id()
+bolsas_str = db.selecionar_bolsas()
 lista_bolsa = inicializacao()
 
 @st.cache_data(show_spinner=False, ttl="6h")
-def preco_acao_data(ticker, data):
-    ticker_obj = yf.Ticker(ticker)
-    dado = ticker_obj.history(start=data, end=data+dt.timedelta(days=1))
-    return float(dado["Close"].iloc[0])
+def preco_acao_data(ticker: str, data: str):
+    if ticker is not None or "":
+        ticker_obj = yf.Ticker(ticker)
+        data = datetime.strptime(data, "%Y-%m-%d")
+        dado = ticker_obj.history(start=data, end=data+dt.timedelta(days=1))
+        return float(dado["Close"].iloc[0]) if not dado.empty else 0.00
+    else:
+        return None
 
 def st_trocar_form():
     st.session_state["mostrar_form"] = not st.session_state["mostrar_form"]
@@ -65,3 +72,25 @@ if st.session_state.mostrar_form:
     if st.button("Adicionar", disabled=(st.session_state["spread_ni"] == 0)):
         st_enviar_form()
         st_trocar_form()
+
+with st.expander("Adicionar Movimentação"):
+    tipo = st.radio("Selecione o tipo de movimentação", options=["Compra", "Venda"], horizontal=True)
+    contrato_id = st.selectbox("Selecione o contrato", options=contratos_id, key="contrato_id")
+    if not contratos_id:
+        st.error("Não tem contratos cadastrados")
+    bolsa_str = st.selectbox("Selecione a bolsa", options=bolsas_str)
+    ticker_str = st.text_input("Selecione o ticker")
+    data = st.date_input("Coloque a data desejada", format="DD/MM/YYYY", key="data_di_2")
+    ticker_qtd = st.number_input("Selecione a quantidade", min_value=0)
+    ticker_valor = st.number_input("Selecione o valor de cada ação", min_value=0.00, placeholder="", value=float(f"{preco_acao_data(ticker_str, str(data)):.2f}"))
+    taxa_unica = st.number_input("Selecione o valor da taxa de transação (se houver)", min_value=0.00, placeholder="")
+    st.caption(f"Valor final: {(ticker_valor*ticker_qtd)+taxa_unica:.2f}")
+    if st.button("Registrar movimentação"):
+        if tipo == "Compra":
+            tipo = 0
+        else:
+            tipo = 1
+        if db.inserir_movimentacao(contrato_id, bolsa_str, ticker_str, ticker_qtd, ticker_valor*ticker_qtd, data.strftime("%Y-%m-%d"), tipo):
+            st.success("Movimentação registrada com sucesso")
+        else:
+            st.error("Não foi possível fazer a movimentação")

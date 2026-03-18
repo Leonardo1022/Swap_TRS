@@ -1,5 +1,6 @@
 import streamlit as st
 import database as db
+from database import data_hoje
 import yfinance as yf
 st.session_state["contrato_total"] = db.selecionar_contrato_id()
 st.session_state["lucro_total"] = db.lucro_total()
@@ -25,14 +26,14 @@ with top_esq_con:
 
 st.title("Contratos")
 
-for id in st.session_state["contrato_total"]:
-    with st.container(key=f"card_contrato_{id}", border=True):
+for contrato_id in st.session_state["contrato_total"]:
+    with st.container(key=f"card_contrato_{contrato_id}", border=True):
         card_layout = st.columns([2, 3])
         with card_layout[0]:
-            st.subheader(f"Contrato {id}")
-            st.write(" / ".join(db.selecionar_acao(id)))
+            st.subheader(f"Contrato {contrato_id}")
+            st.write(" / ".join(db.selecionar_acao(contrato_id)))
         with card_layout[1]:
-            custo_mensal = db.custo_mensal_contrato(id)
+            custo_mensal = db.custo_mensal_contrato(contrato_id, data_hoje)
             st.metric(label="Custo mensal", value=f"R${custo_mensal:.2f}")
         with st.expander("See explanation"):
             st.write('''
