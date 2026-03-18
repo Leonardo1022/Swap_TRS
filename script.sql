@@ -32,14 +32,14 @@ CONSTRAINT pk_Ticker PRIMARY KEY(bo_bolsa, ti_ticker)
 CREATE TABLE IF NOT EXISTS Contrato(
 con_id INTEGER CONSTRAINT pk_con_id PRIMARY KEY AUTOINCREMENT, --PK
 con_mont REAL, --moeda
-con_abertura DATE DEFAULT CURRENT_DATE,
+con_abertura DATE DEFAULT CURRENT_DATE, --AAAA/MM/DD
 con_dur INTEGER NOT NULL, --mes
 con_status INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS Resultado(
 con_id INTEGER, --PK,FK
-re_data DATE, --PK
+re_data DATE, --PK --AAAA/MM/DD
 re_lucro REAL,
 re_custo REAL,
 re_montante REAL,

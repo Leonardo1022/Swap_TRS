@@ -1,9 +1,12 @@
 import sqlite3
 from sqlite3 import Error, IntegrityError, Row
+from datetime import date, datetime
 #Corrigir em relação as alterações feitas na modelagem do db
 
 arquivo_bd = "swap.db"
 
+def converter_data(data: str):
+    return datetime.strptime(data, "%Y/%m/%d")
 
 def conectar():
     conn = sqlite3.connect(arquivo_bd)
@@ -71,7 +74,7 @@ def inserir_venda(contrato: int, bolsa: str, ticker: str, quantidade: int, valor
     except Error as e:
         print(f"Erro ao inserir venda: {e}")
 
-def inserir_resultado(contrato: int, re_data: int, re_lucro: float, re_custo: float, re_montante: float):
+def inserir_resultado(contrato: int, re_data: str, re_lucro: float, re_custo: float, re_montante: float):
     sql_insert = """
                  INSERT INTO Resultado(con_id, re_data, re_lucro, re_custo, re_montante)
                  VALUES (?, ?, ?, ?, ?);
@@ -106,7 +109,10 @@ def selecionar_bolsas():
     except Error as e:
         print(f"Erro ao retornar bolsas: {e}")
         return None
-
+"""
+Recebe o id do contrato
+Retorna uma lista de tickers no id do contrato
+"""
 def selecionar_acao(contrato: int):
     sql_query = """SELECT ti_ticker FROM Acao WHERE con_id = ?"""
     try:
@@ -116,7 +122,10 @@ def selecionar_acao(contrato: int):
     except Error as e:
         print(f"Erro ao selecionar acao: {e}")
         return None
-
+"""
+Retorna uma lista de ids de Contrato
+Se erro retorna None
+"""
 def selecionar_contrato_id():
     sql_query = "SELECT con_id FROM Contrato"
     try:
@@ -126,7 +135,11 @@ def selecionar_contrato_id():
     except Error as e:
         print(f"Erro ao selecionar id dos contratos: {e}")
         return None
-
+"""
+Recebe o id do contrato
+Retorna uma linha de Contrato em formato de dict, pode retornar uma dict vazia
+Se erro retorna None
+"""
 def selecionar_contrato(contrato: int):
     sql_query = "SELECT * FROM Contrato WHERE con_id = ?"
     try:
@@ -136,6 +149,26 @@ def selecionar_contrato(contrato: int):
     except Error as e:
         print(f"Erro ao selecionar contrato: {e}")
         return None
+"""
+Recebe o id do contrato e a data
+Retornar as linhas de Venda em formato de lista de dicionários 
+com as vendas feitas no mesmo mês e ano da data
+"""
+def selecionar_vendas_contrato_mes(contrato: int, data: str):
+    sql_query = """
+                SELECT * FROM Venda 
+                WHERE con_id = ? 
+                AND STRFTIME('%m', ven_data) = ? 
+                AND STRFTIME('%Y', ven_data) = ?;
+                """
+    try:
+        with conectar() as conn:
+            data_mes_str = f"{converter_data(data).month: 02d}"
+            data_ano_str = str(converter_data(data).year)
+            linhas = conn.execute(sql_query, (contrato, data_mes_str, data_ano_str)).fetchall()
+            return [dict(linha) for linha in linhas] if linhas else []
+    except Error as e:
+        print(f"Erro ao selecionar vendas por data: {e}")
 
 def lucro_total():
     sql_query = """SELECT COALESCE(SUM(ven_valor), 0.00) AS total 
@@ -147,7 +180,12 @@ def lucro_total():
     except Error as e:
         print(f"Erro ao selecionar lucro: {e}")
         return None
-
+"""
+Recebe o id do contrato e a data
+Retorna o custo mensal da data em forma de float, pode retornar 0
+Se erro retorna None
+"""
+#A terminar
 def custo_mensal_contrato(contrato: int, data: str):
     sql_query = """
                 SELECT c.con_mont * (t.ta_spread + i.ind_valor) AS custo_mensal 
@@ -157,6 +195,8 @@ def custo_mensal_contrato(contrato: int, data: str):
                 JOIN Indexador i
                 ON t.ind_indexador = i.ind_indexador
                 WHERE c.con_id = ?
+                AND STRFTIME('%m', ven_data) = ? 
+                AND STRFTIME('%Y', ven_data) = ?;
                 """
     try:
         with conectar() as conn:
@@ -197,6 +237,36 @@ def custo_total_mensal():
             return linha["custo_total_mensal"] if linha else 0
     except Error as e:
         print(f"Erro ao selecionar custo: {e}")
+        return None
+"""
+Recebe o id do contrato.
+Retorna em int o número de meses em que a tabela Resultado está atrasada 
+no contrato específico, se em dia retorna 0.
+Se erro retorna None.
+"""
+#A terminar
+def consultar_registro_contrato(contrato: int):
+    sql_query = "SELECT con_abertura FROM Contrato WHERE con_id = ?;"
+    sql_query_2 = "SELECT re_data FROM Resultado WHERE con_id = ? ORDER BY re_data DESC;"
+    try:
+        with conectar() as conn:
+            linha = conn.execute(sql_query_2, (contrato,)).fetchone()
+            data_recente_resultado = converter_data(linha["re_data"])
+            if data_recente_resultado is not None:
+                data_recente_resultado.month - date.today().month
+                if data_recente_resultado.month < date.today().month or data_recente_resultado.year < date.today().year:
+
+                    while data_recente_resultado.month < date.today().month:
+                        #RESOLVER
+                        inserir_resultado(contrato, str(data_recente_resultado), )
+                        data_recente_resultado = data_recente_resultado.month + 1
+            else:
+                linha = conn.execute(sql_query, (contrato,)).fetchone()
+                data_recente_contrato = converter_data(linha["con_abertura"])
+                if data_recente_contrato.month < date.today().month or data_recente_contrato.year < date.today().year:
+
+    except Error as e:
+        print(f"Erro ao selecionar contrato: {e}")
         return None
 
 #Definir um jeito de colocar uma forma de automatizar "Resultado" para ser ativado ou mensalmente
