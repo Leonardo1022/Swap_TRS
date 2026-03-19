@@ -34,8 +34,8 @@ INSERT INTO Ticker VALUES('TSE', '6501');
 INSERT INTO Ticker VALUES('TSE', '7974');
 --Contrato
 INSERT INTO Contrato(CON_MONT, con_duracao) VALUES(500.00, 3);
-INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(800.00, 01012026, 6);
-INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(1000.00, 01012025, 12);
+INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(800.00, '2025-01-01', 6);
+INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(1000.00, '2025-12-01', 12);
 --Taxa
 INSERT INTO Taxa VALUES(1, 'SELIC', 0.01);
 INSERT INTO Taxa VALUES(2, 'SOFR', 0.012);

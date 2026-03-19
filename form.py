@@ -4,16 +4,13 @@ import yfinance as yf
 import datetime as dt
 from datetime import datetime
 
-if "mostrar_form" not in st.session_state:
-    st.session_state["mostrar_form"] = False
-
 @st.cache_data()
 def inicializacao():
     lista_bolsa = db.selecionar_bolsas()
     print(lista_bolsa)
     return lista_bolsa
 
-contratos_id = db.selecionar_contrato_id()
+contratos_id = db.selecionar_contratos_id()
 bolsas_str = db.selecionar_bolsas()
 lista_bolsa = inicializacao()
 
@@ -27,33 +24,24 @@ def preco_acao_data(ticker: str, data: str):
     else:
         return None
 
-def st_trocar_form():
-    st.session_state["mostrar_form"] = not st.session_state["mostrar_form"]
-
 def st_enviar_form():
-    if not st.session_state["ticker_ms"]:
-        st.error("Não foi registrado nenhum ticker!")
-    else:
-        montante_total = 0.00
+    montante_total = 0.00
 
-        for montante in st.session_state["ticker_ms"]:
-            montante_total += st.session_state[f"montante_{montante}"]
-        contrato_id = db.inserir_contrato(montante_total, str(st.session_state["data_di"]), st.session_state["duracao_ni"])
-        db.inserir_taxa(contrato_id, st.session_state["indexador_sb"], st.session_state["spread_ni"])
+    for montante in st.session_state["ticker_ms"]:
+        montante_total += st.session_state[f"montante_{montante}"]
+    contrato_id = db.inserir_contrato(montante_total, str(st.session_state["data_di"]), st.session_state["duracao_ni"])
+    db.inserir_taxa(contrato_id, st.session_state["indexador_sb"], st.session_state["spread_ni"])
 
-        for t in st.session_state["ticker_ms"]:
-            db.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
-        st.success("Contrato adicionado com sucesso!")
+    for t in st.session_state["ticker_ms"]:
+        db.inserir_acao(contrato_id, t, st.session_state["bolsa_sb"], st.session_state[f"qtd_compra_{t}"], st.session_state[f"montante_{t}"])
+    return True
 
 #Começo
 st.title("Contratos")
-""
-st.write("Adicionar contrato")
-
-st.button("Adicionar contrato", on_click=st_trocar_form)
+st.space("small")
 
 enviado = False
-if st.session_state.mostrar_form:
+with st.expander("Adicionar contrato"):
     st.date_input("Coloque a data de início", key="data_di", format="DD/MM/YYYY")
     bolsa = st.selectbox("Selecione a Bolsa", lista_bolsa, key="bolsa_sb", index=None, placeholder="")
 
@@ -70,27 +58,32 @@ if st.session_state.mostrar_form:
     st.selectbox("Selecione o indexador", ["CDI", "SELIC"], index=None, placeholder="", key="indexador_sb")
     st.number_input("Spread em (%)", min_value=0.0, key="spread_ni")
     if st.button("Adicionar", disabled=(st.session_state["spread_ni"] == 0)):
-        st_enviar_form()
-        st_trocar_form()
+        if st_enviar_form():
+            st.success("Contrato adicionado com sucesso!")
+        else:
+            st.error("Não foi registrado nenhum ticker!")
+
 
 with st.expander("Adicionar Movimentação"):
     tipo = st.radio("Selecione o tipo de movimentação", options=["Compra", "Venda"], horizontal=True)
     contrato_id = st.selectbox("Selecione o contrato", options=contratos_id, key="contrato_id")
     if not contratos_id:
         st.error("Não tem contratos cadastrados")
-    bolsa_str = st.selectbox("Selecione a bolsa", options=bolsas_str)
-    ticker_str = st.text_input("Selecione o ticker")
-    data = st.date_input("Coloque a data desejada", format="DD/MM/YYYY", key="data_di_2")
+    acoes_list = db.selecionar_acao(contrato_id)
+    ticker_str = st.selectbox("Selecione o ticker", options=[acao["ti_ticker"] for acao in acoes_list])
+    data = st.date_input(f"Coloque a data de {"venda" if tipo == "Venda" else "compra"}", format="DD/MM/YYYY", key="data_di_2")
     ticker_qtd = st.number_input("Selecione a quantidade", min_value=0)
-    ticker_valor = st.number_input("Selecione o valor de cada ação", min_value=0.00, placeholder="", value=float(f"{preco_acao_data(ticker_str, str(data)):.2f}"))
+    ticker_sufixo_str = db.selecionar_bolsa(acoes_list[0]["bo_bolsa"])["bo_sufixo"]
+    bolsa_moeda_str = db.selecionar_bolsa(acoes_list[0]["bo_bolsa"])["bo_moeda"]
+    ticker_valor = st.number_input(f"Selecione o valor de cada ação (em {bolsa_moeda_str})", min_value=0.00, placeholder="", value=float(f"{preco_acao_data(ticker_str+ticker_sufixo_str, str(data)):.2f}"))
     taxa_unica = st.number_input("Selecione o valor da taxa de transação (se houver)", min_value=0.00, placeholder="")
     st.caption(f"Valor final: {(ticker_valor*ticker_qtd)+taxa_unica:.2f}")
     if st.button("Registrar movimentação"):
         if tipo == "Compra":
-            tipo = 0
-        else:
-            tipo = 1
-        if db.inserir_movimentacao(contrato_id, bolsa_str, ticker_str, ticker_qtd, ticker_valor*ticker_qtd, data.strftime("%Y-%m-%d"), tipo):
+            e_venda = 0
+        elif tipo == "Venda":
+            e_venda = 1
+        if db.inserir_movimentacao(contrato_id, acoes_list[0]["bo_bolsa"], ticker_str, ticker_qtd, (ticker_valor*ticker_qtd), data.strftime("%Y-%m-%d"), e_venda):
             st.success("Movimentação registrada com sucesso")
         else:
             st.error("Não foi possível fazer a movimentação")

@@ -1,8 +1,6 @@
 # Parte de base
 import database as db
 import streamlit as st
-#uv run streamlit run main.py
-
 # Streamlit
 st.set_page_config(page_title="Data manager", page_icon=":material/edit:")
 
