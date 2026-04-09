@@ -3,6 +3,7 @@ from sqlite3 import Error, IntegrityError, Row
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import calculadorTaxa as ct
 #Configurações
 arquivo_bd = "swap.db"
 data_hoje = datetime.today()
@@ -27,28 +28,35 @@ def executar_script(caminho_sql):
         print("Arquivo SQL não encontrado")
     except Error as e:
         print(f"Erro ao criar tabelas: {e}")
+"""
 
-def inserir_contrato(montante: float, data: str, duracao: int):
-    sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_duracao)
-                    VALUES (?, ?, ?)"""
+"""
+def inserir_indexador(indexador: str, data: str, taxa: float):
+    sql_insert = """
+                 INSERT INTO Indexador(ind_indexador, ind_data, ind_valor)
+                 VALUES (?, ?, ?)
+                 """
     try:
         with conectar() as conn:
-            cursor = conn.execute(sql_insert, (montante, data, duracao))
-            print(f"Contrato adicionado: ID {cursor.lastrowid}")
+            conn.execute(sql_insert, (indexador, data, taxa))
+            conn.commit()
+            print(f"Inserido indexador {indexador} com taxa {taxa}a.m na data {data}")
+    except Error as e:
+        print("Erro ao inserir Indexador")
+
+def inserir_contrato(montante: float, data: str, duracao: int, indexador: str, spread: float):
+    sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_duracao, con_indexador, con_spread)
+                    VALUES (?, ?, ?, ?, ?)"""
+    try:
+        with conectar() as conn:
+            cursor = conn.execute(sql_insert, (montante, data, duracao, indexador, spread))
+            conn.commit()
+            print(f"Contrato adicionado: ID {cursor.lastrowid}, data: {data}, duração: {duracao}, indexador: {indexador}, spread: {spread}")
+            preencher_resultado(cursor.lastrowid, montante,duracao)
             return cursor.lastrowid
     except Error as e:
         print(f"Erro ao inserir contrato: {e}")
         return None
-
-def inserir_taxa(contrato: int, indexador: str, spread: float):
-    sql_insert = """INSERT INTO Taxa(con_id, ind_indexador, ta_spread) 
-                    VALUES(?, ?, ?)"""
-    try:
-        with conectar() as conn:
-            cursor = conn.execute(sql_insert, (contrato, indexador, spread))
-            print("Taxa adicionada")
-    except Error as e:
-        print(f"Erro ao inserir taxa: {e}")
 
 def inserir_acao(contrato: int, bolsa: str, ticker: str, quantidade: int, montante: float):
     sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_quantidade, ac_montante)
@@ -71,8 +79,9 @@ def inserir_movimentacao(contrato: int, bolsa: str, ticker: str, quantidade: int
             if e_venda == 1:
                 ""
             elif e_venda == 0:
-                if atualizar_acao(quantidade, valor, contrato, bolsa, ticker):
-                    return True
+                if atualizar_contrato_montante(contrato, valor):
+                    if atualizar_acao(quantidade, valor, contrato, bolsa, ticker):
+                        return True
     except IntegrityError as e:
         #Arrumar
         if "Quantidade vendida maior" in str(e):
@@ -94,6 +103,20 @@ def inserir_resultado(contrato: int, data: str, lucro: float, custo: float, mont
             print(f"Resultado adicionado (contrato:{contrato}, data:{data}, lucro:{lucro}, custo:{custo}, montante:{montante})")
     except Error as e:
         print(f"Erro ao inserir resultado: {e}")
+
+def selecionar_ultimo_indexador_data(indexador: str):
+    sql_query = """
+                SELECT * FROM Indexador
+                ORDER BY ind_data DESC
+                LIMIT 1;
+                """
+    try:
+        with conectar() as conn:
+            linha = pd.read_sql_query(sql_query, conn)
+            return linha
+    except Error as e:
+        print(f"Erro ao selecionar o último indexador: {e}")
+        return None
 
 def selecionar_tickers(bolsa: str):
     sql_query = """SELECT ti_ticker 
@@ -123,6 +146,7 @@ def selecionar_bolsa(bolsa: str):
     try:
         with conectar() as conn:
             linha = conn.execute(sql_query, (bolsa,)).fetchone()
+            print(dict(linha))
             return dict(linha) if linha else {}
     except Error as e:
         print(f"Erro ao selecionar bolsa: {e}")
@@ -167,12 +191,22 @@ def selecionar_contrato(contrato: int):
     except Error as e:
         print(f"Erro ao selecionar contrato: {e}")
         return None
+
+def selecionar_indexadores():
+    sql_query = "SELECT * FROM Indexador;"
+    try:
+        with conectar() as conn:
+            df = pd.read_sql_query(sql_query, conn)
+            return df
+    except Error as e:
+        print(f"Erro ao selecionar indexador: {e}")
+        return None
 """
 Recebe o id do contrato e a data
 Retornar as linhas de Movimentacao em formato de lista de dicionários 
 com as vendas feitas no mesmo mês e ano da data
 """
-def selecionar_vendas_contrato_mes(contrato: int, data: str):
+def selecionar_movimentacao_contrato_mes(contrato: int, data: str):
     sql_query = """
                 SELECT * FROM Movimentacao 
                 WHERE con_id = ? 
@@ -183,8 +217,8 @@ def selecionar_vendas_contrato_mes(contrato: int, data: str):
         with conectar() as conn:
             data_mes_str = f"{converter_data(data).month: 02d}"
             data_ano_str = str(converter_data(data).year)
-            linhas = conn.execute(sql_query, (contrato, data_mes_str, data_ano_str)).fetchall()
-            return [dict(linha) for linha in linhas] if linhas else []
+            df = pd.read_sql_query(sql_query, conn, params=(contrato, data_mes_str, data_ano_str))
+            return df
     except Error as e:
         print(f"Erro ao selecionar vendas por data: {e}")
 
@@ -213,6 +247,16 @@ def atualizar_acao(quantidade: int, montante: float, contrato:int, bolsa: str, t
             return True
     except Error as e:
         print(f"Erro ao atualizar acao: {e}")
+
+def atualizar_contrato_montante(contrato: int, montante:float):
+    sql_update = "UPDATE Contrato SET con_mont = con_mont + ? WHERE con_id = ?;"
+    try:
+        with conectar() as conn:
+            conn.execute(sql_update, (montante, contrato))
+            print(f"Montante do contrato {contrato} atualizado em {montante}")
+            return True
+    except Error as e:
+        print(f"Erro ao atualizar montante do contrato: {e}")
 """
 Retorna o lucro total de todos os contratos, pode retornar 0.00
 Se erro retorna None
@@ -235,28 +279,35 @@ Se erro retorna None
 #A terminar
 def custo_mensal_contrato(contrato: int, data: str):
     sql_query = """
-                SELECT c.con_mont * (t.ta_spread + i.ind_valor) AS custo_mensal 
+                SELECT c.con_mont * (c.con_spread + i.ind_valor) AS custo_mensal 
                 FROM Contrato c 
-                JOIN Taxa t 
-                ON c.con_id = t.con_id
                 JOIN Indexador i
-                ON t.ind_indexador = i.ind_indexador
+                ON c.con_indexador = i.ind_indexador
                 JOIN Movimentacao m
                 ON c.con_id = m.con_id
-                WHERE c.con_id = ?
-                AND mov_e_venda = 1
-                AND STRFTIME('%m', mov_data) = ? 
-                AND STRFTIME('%Y', mov_data) = ?;
+                WHERE c.con_id = ? AND i.ind_data = ?;
                 """
     try:
         with conectar() as conn:
-            data_mes_str = f"{converter_data(data).month: 02d}"
-            data_ano_str = str(converter_data(data).year)
-            linha = conn.execute(sql_query, (contrato, data_mes_str, data_ano_str)).fetchone()
-            return linha["custo_mensal"] if linha else 0.00
+                linha = conn.execute(sql_query, (contrato, data)).fetchone()
+                return linha["custo_mensal"] if linha else 0.00
     except Error as e:
         print(f"Erro ao selecionar custo mensal: {e}")
         return None
+
+def inserir_custo_mensal_contrato(contrato: int, data: str):
+    df_mov = selecionar_movimentacao_contrato_mes(contrato, data)
+    soma_custo_variavel = df_mov.loc[df_mov["mov_e_venda"] == 0, "mov_valor"].sum
+
+    sql_insert = """
+                INSERT INTO Resultado(con_id, re_data, re_custo, re_montante) 
+                VALUES (?, ?, ?, ?);
+                """
+    try:
+        with conectar() as conn:
+            conn.execute(sql_insert, (contrato, data))
+    except Error as e:
+        print(f"Não foi possível adicionar custo mensal: {e}")
 
 def lucro_mensal_contrato(contrato: int, data: str):
     sql_query_com_resultado = """
@@ -291,12 +342,10 @@ Se erro retorna None
 """
 def custo_total_mensal():
     sql_query = """
-                SELECT SUM(c.con_mont * (t.ta_spread + i.ind_valor)) AS custo_total_mensal 
+                SELECT SUM(c.con_mont * (c.con_spread + i.ind_valor)) AS custo_total_mensal 
                 FROM Contrato c 
-                JOIN Taxa t 
-                ON c.con_id = t.con_id
                 JOIN Indexador i
-                ON t.ind_indexador = i.ind_indexador
+                ON c.con_indexador = i.ind_indexador
                 """
     try:
         with conectar() as conn:
@@ -324,20 +373,81 @@ def ultimo_resultado_contrato(contrato: int):
                 return meses_faltantes
             else:
                 linha = conn.execute(sql_query_2, (contrato,)).fetchone()
-                data_recente_contrato = converter_data(linha["con_abertura"])
-                meses_faltantes = data_hoje.month - data_recente_contrato.month + ((data_hoje.year - data_recente_contrato.year) * 12)
-                return meses_faltantes
+                if linha is None or linha["con_abertura"] is None:
+                    data_recente_contrato = converter_data(linha["con_abertura"])
+                    meses_faltantes = data_hoje.month - data_recente_contrato.month + ((data_hoje.year - data_recente_contrato.year) * 12)
+                    return meses_faltantes
+                else:
+                    print("Erro aqui")
+                    return 0
     except Error as e:
         print(f"Erro ao selecionar contrato: {e}")
         return None
+"""
+Recebe o ticker alvo
+Retorna os primeiros 5 tickers de ação registrados
+"""
+def primeiros_5_ticker(ticker: str):
+    sql_query = """
+                SELECT a.ac_quantidade, a.ac_montante, a.con_id, a.ti_ticker
+                    FROM Acao a
+                JOIN Contrato c 
+                    ON a.con_id = c.con_id
+                WHERE a.ti_ticker = ?
+                    ORDER BY c.con_abertura ASC
+                LIMIT 5;
+                """
+    with conectar() as conn:
+        df = pd.read_sql_query(sql_query, conn, params=(ticker,))
+        return df
+"""
+Calcula quantos contratos serão afetados pela venda.
+Recebe o df com os dados dos primeiros 5 resultados da consulta feita pelo método ultimo_5_ticker().
+Retorna os contratos e valores.
+"""
+def calcular_venda(df: pd.DataFrame, quantidade: int):
+    ticker = df["ti_ticker"].iloc[0]
+    for _, linha in df.iterrows():
+        if linha['ac_quantidade'] >= quantidade:
+            atualizar_acao_quantidade(ticker, linha["con_id"], linha['ac_quantidade'] - quantidade)
+            break
+        else:
+            quantidade -= linha['ac_quantidade']
+            atualizar_acao_quantidade(ticker, linha["con_id"], 0)
+"""
+Atualiza a quantidade na tabela de ação, o valor padrão para a quantidade é 0 caso tenha que zerá-lo
 
+"""
+def atualizar_acao_quantidade(ticker: str, contrato: int, quantidade: int):
+    sql_update = """
+                 UPDATE Acao SET ac_quantidade = ? 
+                    WHERE ti_ticker = ? AND con_id = ?
+                 """
+    with conectar() as conn:
+        conn.execute(sql_update, (quantidade, ticker, contrato))
+        conn.commit()
 
-for contrato in selecionar_contratos_id():
+def preencher_resultado(contrato: int, montante: float, duracao_contrato: int):
     meses_faltantes = ultimo_resultado_contrato(contrato)
+    if meses_faltantes > duracao_contrato:
+        meses_faltantes = duracao_contrato
+    data_inicial = data_hoje - relativedelta(months=meses_faltantes)
     for mes in range(meses_faltantes):
         data = data_inicial + relativedelta(months= mes + 1)
-        lucro = lucro_mensal_contrato(contrato, data)
-        custo = custo_mensal_contrato(contrato, data)
-        inserir_resultado(contrato, data, lucro, custo, )
-#Definir um jeito de colocar uma forma de automatizar "Resultado" para ser ativado ou mensalmente
-#Ou ter um jeito de fazer as coisas
+        print(f"{data} Tipo: {type(data)}")
+        custo_fixo = custo_mensal_contrato(contrato, str(data))
+        inserir_resultado(contrato, str(data), 0.00, custo_fixo, montante)
+
+def inserir_indexador_nome(indexador: str):
+    try:
+        tabela_indexador = ct.tabela_juros_acumulado_mensal(11, "dataInicial=01/01/2020", "")
+        for row in tabela_indexador.iterrows():
+            inserir_indexador(indexador, row["data"], float(row["valor"]))
+    except AttributeError as ae:
+        print(f"Erro ao inserir indexadores, o retorno esperado foi de um tipo diferente: {ae}")
+
+#Insersões únicas no bd
+try:
+    inserir_indexador_nome("SELIC")
+except IntegrityError as ie:
+    print(f"Operação já feita: {ie}")

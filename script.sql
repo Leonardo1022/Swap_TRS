@@ -4,15 +4,17 @@ DROP TABLE IF EXISTS Bolsa;
 DROP TABLE IF EXISTS Ticker;
 DROP TABLE IF EXISTS Contrato;
 DROP TABLE IF EXISTS Resultado;
-DROP TABLE IF EXISTS Taxa;
+--DROP TABLE IF EXISTS Taxa;
 DROP TABLE IF EXISTS Acao;
 DROP TABLE IF EXISTS Movimentacao;
 DROP TRIGGER IF EXISTS trg_verifica_venda;
 
 /* Tabelas */
 CREATE TABLE IF NOT EXISTS Indexador(
-ind_indexador TEXT CONSTRAINT pk_Indexador PRIMARY KEY, --PK
-ind_valor REAL NOT NULL --porcentagem,a.a
+ind_indexador TEXT, --PK
+ind_data DATE, --PK --AAA-MM-DD
+ind_valor REAL NOT NULL, --Porcentagem,a.m
+CONSTRAINT pk_Indexador PRIMARY KEY(ind_indexador, ind_data)
 );
 
 CREATE TABLE IF NOT EXISTS Bolsa(
@@ -32,30 +34,22 @@ CONSTRAINT pk_Ticker PRIMARY KEY(bo_bolsa, ti_ticker)
 CREATE TABLE IF NOT EXISTS Contrato(
 con_id INTEGER CONSTRAINT pk_con_id PRIMARY KEY AUTOINCREMENT, --PK
 con_mont REAL, --moeda
-con_abertura DATE DEFAULT CURRENT_DATE, --AAAA/MM/DD
+con_abertura DATE DEFAULT CURRENT_DATE, --AAAA-MM-DD
 con_duracao INTEGER NOT NULL, --mes
-con_status INTEGER DEFAULT 1
+con_indexador TEXT NOT NULL,
+con_spread REAL NOT NULL,
+con_status INTEGER DEFAULT 1 --Bool
 );
 
 CREATE TABLE IF NOT EXISTS Resultado(
 con_id INTEGER, --PK,FK
-re_data DATE, --PK --AAAA/MM/DD
+re_data DATE, --PK --AAAA-MM-DD
 re_lucro REAL,
 re_custo REAL,
 re_montante REAL,
 CONSTRAINT pk_Resultado PRIMARY KEY(con_id, re_data),
 CONSTRAINT fk_Resultado_Contrato FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS Taxa(
-con_id INTEGER CONSTRAINT pk_Taxa PRIMARY KEY, --PK,FK
-ind_indexador REAL, --FK
-ta_spread REAL, --porcentagem
-CONSTRAINT fk_Taxa_Contrato FOREIGN KEY(con_id)
-REFERENCES Contrato(con_id) ON DELETE CASCADE,
-CONSTRAINT fk_Taxa_Indexador FOREIGN KEY(ind_indexador)
-REFERENCES Indexador(ind_indexador) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Acao(
@@ -85,6 +79,16 @@ REFERENCES Acao(con_id, bo_bolsa, ti_ticker) ON DELETE CASCADE
 );
 --Arrumar
 /* Triggers */
+CREATE TRIGGER IF NOT EXISTS trg_calcula_venda
+    BEFORE UPDATE ON Acao
+    FOR EACH ROW
+    BEGIN
+        SELECT CASE
+            WHEN NEW.ac_quantidade > OLD.ac_quantidade
+            THEN
+    end;
+
+/*
 CREATE TRIGGER IF NOT EXISTS trg_verifica_venda
 BEFORE INSERT ON Venda
 FOR EACH ROW
@@ -111,3 +115,4 @@ BEGIN
             THEN RAISE(ABORT, 'Quantidade vendida maior que a disponível')
         END;
 END;
+ */

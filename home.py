@@ -23,7 +23,7 @@ top_esq_con = layout_sup[0].container(
 with top_esq_con:
     sub_layout_sup = st.columns(2)
     sub_layout_sup[0].metric("Balanço geral", f"R${st.session_state["lucro_total"]:.2f}")
-    sub_layout_sup[1].metric("Custo mensal previsto", f"R${st.session_state["custo_total_mensal"]:.2f}", width="content")
+    sub_layout_sup[1].metric("Custo mensal previsto", f"R${st.session_state["custo_total_mensal"] if not None else 0:.2f}", width="content")
 
 st.title("Contratos")
 
@@ -36,9 +36,9 @@ for contrato_id in st.session_state["contrato_total"]:
             st.write(" / ".join([acao["ti_ticker"] for acao in acoes_list]))
         with card_layout[1]:
             custo_mensal_atual = db.custo_mensal_contrato(contrato_id, data_hoje.strftime("%Y-%m-%d"))
-            st.metric(label="Custo mensal", value=f"R${custo_mensal_atual:.2f}")
+            st.metric(label="Custo mensal", value=f"R${custo_mensal_atual if custo_mensal_atual else -1.00:.2f}")
         with st.expander("Ver detalhes"):
             st.write("Tabela de histórico do contrato")
             #Uma coluna de custo, outra de preço e outra de resultado
             df = db.selecionar_valores_resultado(contrato_id)
-            st.line_chart(df, use_container_width=True)
+            st.line_chart(df, width="stretch")

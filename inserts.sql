@@ -1,7 +1,7 @@
 --Indexador
-INSERT INTO Indexador VALUES('SELIC', 0.15);
-INSERT INTO Indexador VALUES('SOFR', 0.0367);
-INSERT INTO Indexador VALUES('TONAR', 0.00728);
+INSERT INTO Indexador VALUES('SELIC', '', 0.15);
+INSERT INTO Indexador VALUES('SOFR', '', 0.0367);
+INSERT INTO Indexador VALUES('TONAR', '', 0.00728);
 --Bolsa
 INSERT INTO Bolsa VALUES('B3', 'BRL', '.SA');
 INSERT INTO Bolsa VALUES('NASDAQ', 'USD', '');
@@ -33,13 +33,9 @@ INSERT INTO Ticker VALUES('TSE', '6758');
 INSERT INTO Ticker VALUES('TSE', '6501');
 INSERT INTO Ticker VALUES('TSE', '7974');
 --Contrato
-INSERT INTO Contrato(CON_MONT, con_duracao) VALUES(500.00, 3);
-INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(800.00, '2025-01-01', 6);
-INSERT INTO Contrato(con_mont, con_abertura, con_duracao) VALUES(1000.00, '2025-12-01', 12);
---Taxa
-INSERT INTO Taxa VALUES(1, 'SELIC', 0.01);
-INSERT INTO Taxa VALUES(2, 'SOFR', 0.012);
-INSERT INTO Taxa VALUES(3, 'TONAR', 0.014);
+INSERT INTO Contrato(CON_MONT, con_duracao, con_indexador, con_spread) VALUES(500.00, 3, 'SELIC', 2);
+INSERT INTO Contrato(con_mont, con_abertura, con_duracao, con_indexador, con_spread) VALUES(800.00, '2025-01-01', 6, 'TORIC', 0);
+INSERT INTO Contrato(con_mont, con_abertura, con_duracao, con_indexador, con_spread) VALUES(1000.00, '2025-12-01', 12, 'SELIC', 1);
 --Acao
 INSERT INTO Acao VALUES(1, 'B3', 'PETR4', 12, 500.00);
 INSERT INTO Acao VALUES(2, 'NYSE', 'JNJ', 20, 800.00);
