@@ -9,7 +9,7 @@ if __name__ == "__main__":
     if data_registro.month < date.today().month or data_registro.year < date.today().year:
         print("A data está atrasada")
         data_registro = date.today()
-        number = db.ultimo_resultado_contrato(3)
+        number = db.selecionar_contrato_ultimo_resultado(3)
         print(number)
     data_str = "2026-03-10"
     data = datetime.strptime(str(date.today()), "%Y-%m-%d")

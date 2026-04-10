@@ -1,13 +1,13 @@
 import streamlit as st
 import database as db
-import pandas as pd
-from database import data_hoje
-import yfinance as yf
+from datetime import datetime
+
+data_hoje = datetime.today()
 st.session_state["contrato_total"] = db.selecionar_contratos_id()
-st.session_state["lucro_total"] = db.lucro_total()
+st.session_state["lucro_total"] = db.selecionar_movimentacao_lucro_total()
 if "lucro_total" not in st.session_state or "custo_total_mensal" not in st.session_state:
-    st.session_state["lucro_total"] = db.lucro_total()
-    st.session_state["custo_total_mensal"] = db.custo_total_mensal()
+    st.session_state["lucro_total"] = db.selecionar_movimentacao_lucro_total()
+    st.session_state["custo_total_mensal"] = db.selecionar_contratos_custo_mensal()
     st.session_state["contrato_total"] = db.selecionar_contratos_id()
 
 st.title("Página inicial")
@@ -35,10 +35,10 @@ for contrato_id in st.session_state["contrato_total"]:
             st.subheader(f"Contrato {contrato_id}")
             st.write(" / ".join([acao["ti_ticker"] for acao in acoes_list]))
         with card_layout[1]:
-            custo_mensal_atual = db.custo_mensal_contrato(contrato_id, data_hoje.strftime("%Y-%m-%d"))
+            custo_mensal_atual = db.selecionar_contrato_custo_mensal(contrato_id, data_hoje.strftime("%Y-%m-%d"))
             st.metric(label="Custo mensal", value=f"R${custo_mensal_atual if custo_mensal_atual else -1.00:.2f}")
         with st.expander("Ver detalhes"):
             st.write("Tabela de histórico do contrato")
             #Uma coluna de custo, outra de preço e outra de resultado
-            df = db.selecionar_valores_resultado(contrato_id)
+            df = db.selecionar_resultado_valores(contrato_id)
             st.line_chart(df, width="stretch")

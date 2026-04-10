@@ -4,9 +4,6 @@ import yfinance as yf
 import datetime as dt
 from datetime import datetime
 
-from database import custo_mensal_contrato
-
-
 @st.cache_data()
 def inicializacao():
     lista_bolsa = db.selecionar_bolsas()
@@ -28,6 +25,7 @@ def preco_acao_data(ticker: str, data: str):
 
 def st_enviar_form(montante_total: float):
     contrato_id = db.inserir_contrato(montante_total, str(st.session_state["data_di"]), st.session_state["duracao_ni"])
+    db.preencher_resultado(contrato_id, montante, st.session_state["duracao_ni"])
     db.inserir_taxa(contrato_id, st.session_state["indexador_sb"], st.session_state["spread_ni"])
 
     for t in st.session_state["ticker_ms"]:
