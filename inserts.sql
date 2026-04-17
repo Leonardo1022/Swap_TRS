@@ -41,3 +41,26 @@ INSERT INTO Acao VALUES(1, 'B3', 'PETR4', 12, 500.00);
 INSERT INTO Acao VALUES(2, 'NYSE', 'JNJ', 20, 800.00);
 INSERT INTO Acao VALUES(3, 'TSE', '7203', 10, 500.00);
 INSERT INTO Acao VALUES(3, 'TSE', '8306', 10, 500.00);
+
+INSERT INTO Indexador(ind_indexador, ind_data, ind_valor)
+    VALUES ('SELIC', '01-01-2025', 9.1);
+
+SELECT con_mont * ((1 + (
+                     SELECT ind_valor FROM Indexador
+                         WHERE ind_indexador = con_indexador
+                           AND STRFTIME('%Y',ind_data) = '2026'
+                           AND STRFTIME('%m',ind_data) = '02'
+                 )) * (POWER(1 + con_spread, (1.0/12))))
+                            AS custo_mensal FROM Contrato WHERE con_id = 2;
+
+SELECT coalesce(SUM(v.ven_valor), 0.00) AS lucro_mensal FROM Venda v
+                JOIN AcaoVenda av
+                    ON v.ven_id = av.ven_id
+                JOIN Acao a
+                    ON av.ac_id = a.ac_id
+                WHERE STRFTIME('%Y', v.ven_data) = '2026'
+                  AND STRFTIME('%m', v.ven_data) = '03'
+                  AND a.con_id = 3;
+
+SELECT COALESCE(SUM(ven_valor), 0.00) AS total
+                   FROM Venda;

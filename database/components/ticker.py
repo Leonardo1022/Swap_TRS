@@ -1,5 +1,6 @@
 from database.connection import conectar
 from sqlite3 import Error
+import pandas as pd
 
 def selecionar_tickers(bolsa: str):
     sql_query = """SELECT ti_ticker 
@@ -7,8 +8,9 @@ def selecionar_tickers(bolsa: str):
                    WHERE bo_bolsa = ?"""
     try:
         with conectar() as conn:
-            linhas = conn.execute(sql_query, (bolsa,)).fetchall()
-            return [linha["ti_ticker"] for linha in linhas]
+            df = pd.read_sql_query(sql_query, conn, params=(bolsa,))
+            print(f"Sucesso ao selecionar os tickers da bolsa {bolsa}")
+            return df["ti_ticker"].tolist()
     except Error as e:
         print(f"Erro ao selecionar bolsa: {e}")
         return None

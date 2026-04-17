@@ -1,7 +1,7 @@
 import sqlite3
 from sqlite3 import Error, Row
 
-arquivo_bd = "swap.db"
+arquivo_bd = r"C:\Users\leona\PycharmProjects\Swap_TRS\swap.db"
 
 def conectar():
     conn = sqlite3.connect(arquivo_bd)

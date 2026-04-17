@@ -1,20 +1,22 @@
 import yfinance as yf
 import database as db
+
 from datetime import date, datetime, timedelta
+
+#from form import bolsa_moeda_str
+
 if __name__ == "__main__":
     #contrato = db.selecionar_contrato(1)
     #print(contrato["con_mont"])
-    data_registro = date.strptime("2025-07-31", "%Y-%m-%d")
-    print(data_registro)
-    if data_registro.month < date.today().month or data_registro.year < date.today().year:
-        print("A data está atrasada")
-        data_registro = date.today()
-        number = db.selecionar_contrato_ultimo_resultado(3)
-        print(number)
-    data_str = "2026-03-10"
-    data = datetime.strptime(str(date.today()), "%Y-%m-%d")
-    ticker_obj = yf.Ticker("V")
-    info = ticker_obj.info
-    print(info["longName"])
-    data = ticker_obj.history(start=data, end=data+timedelta(days=1))
-    print(data["Close"].values)
+    valor_dict = dict()
+    for i in range(3):
+        bolsa_moeda_str = input("Digite a string ")
+        acao_valor = float(input("Digite o valor"))
+        if bolsa_moeda_str not in valor_dict.keys():
+            valor_dict[bolsa_moeda_str] = acao_valor
+        else:
+            valor_dict[bolsa_moeda_str] += acao_valor
+        print(valor_dict)
+
+    for key, valor in valor_dict.items():
+        print(f"Key: {key} Valor: {valor:.2f}")

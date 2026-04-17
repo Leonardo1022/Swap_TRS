@@ -1,3 +1,4 @@
+from database.utils import converter_data
 from database.connection import conectar
 from sqlite3 import Error
 import pandas as pd
@@ -29,3 +30,21 @@ def selecionar_resultado_valores(contrato: int):
 
 def selecionar_resultado_mensal_contrato(contrato: int, data: str):
     sql_query = """"""
+
+def atualizar_resultado_lucro(lucro: float, contrato: int, data: str):
+    sql_update = """
+                 UPDATE Resultado SET re_lucro = re_lucro + ? 
+                    WHERE con_id = ? 
+                      AND STRFTIME('%Y', re_data) = ? 
+                      AND STRFTIME('%m', re_data) = ?;
+                 """
+    try:
+        with conectar() as conn:
+            data_convertida = converter_data(data)
+            data_mes_str = f"{data_convertida.month:02d}"
+            data_ano_str = str(data_convertida.year)
+            conn.execute(sql_update, (lucro, contrato, data_ano_str, data_mes_str))
+            conn.commit()
+            print(f"Adicionado {lucro} em resultado com contrato {contrato}")
+    except Error as e:
+        print(f"Erro em atualizar_resultado_lucro: {e}")

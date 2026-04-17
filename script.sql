@@ -6,7 +6,8 @@ DROP TABLE IF EXISTS Contrato;
 DROP TABLE IF EXISTS Resultado;
 --DROP TABLE IF EXISTS Taxa;
 DROP TABLE IF EXISTS Acao;
-DROP TABLE IF EXISTS Movimentacao;
+DROP TABLE IF EXISTS Venda;
+DROP TABLE IF EXISTS AcaoVenda;
 DROP TRIGGER IF EXISTS trg_verifica_venda;
 
 /* Tabelas */
@@ -53,29 +54,34 @@ REFERENCES Contrato(con_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Acao(
-con_id INTEGER, --PK,FK
-bo_bolsa TEXT, --PK,FK
-ti_ticker TEXT, --PK,FK
+ac_id INTEGER CONSTRAINT pk_Acao PRIMARY KEY AUTOINCREMENT, --PK
+con_id INTEGER NOT NULL, --UK,FK
+bo_bolsa TEXT NOT NULL, --UK,FK
+ti_ticker TEXT NOT NULL, --UK,FK
 ac_quantidade INTEGER NOT NULL,
 ac_montante REAL NOT NULL, --moeda
 CONSTRAINT fk_Acao_Contrato FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE,
 CONSTRAINT fk_Acao_Ticker FOREIGN KEY(bo_bolsa, ti_ticker)
 REFERENCES Ticker(bo_bolsa, ti_ticker) ON DELETE CASCADE,
-CONSTRAINT pk_Acao PRIMARY KEY(con_id, bo_bolsa, ti_ticker)
+CONSTRAINT uk_Acao UNIQUE(con_id, bo_bolsa, ti_ticker)
 );
 
-CREATE TABLE IF NOT EXISTS Movimentacao(
-mov_id INTEGER CONSTRAINT pk_Movimentacao PRIMARY KEY AUTOINCREMENT, --PK
-con_id INTEGER, --FK
-bo_bolsa TEXT, --FK
-ti_ticker TEXT, --FK
-mov_quantidade INTEGER NOT NULL,
-mov_valor REAL NOT NULL, --moeda
-mov_data DATE DEFAULT CURRENT_DATE,
-mov_e_venda INTEGER NOT NULL, --Venda ou compra
-CONSTRAINT fk_Movimentacao_Acao FOREIGN KEY(con_id, bo_bolsa, ti_ticker)
-REFERENCES Acao(con_id, bo_bolsa, ti_ticker) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS Venda(
+ven_id INTEGER CONSTRAINT pk_Venda PRIMARY KEY AUTOINCREMENT, --PK
+ven_quantidade INTEGER NOT NULL,
+ven_valor REAL NOT NULL, --moeda
+ven_data DATE DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE IF NOT EXISTS AcaoVenda(
+ac_id INTEGER, --PK,FK
+ven_id INTEGER, --PK,FK
+CONSTRAINT pk_AcaoVenda PRIMARY KEY(ac_id, ven_id),
+CONSTRAINT fk_AcaoVenda_Acao FOREIGN KEY(ac_id)
+REFERENCES Acao(ac_id) ON DELETE CASCADE,
+CONSTRAINT fk_AcaoVenda_Venda FOREIGN KEY(ven_id)
+REFERENCES Venda(ven_id) ON DELETE CASCADE
 );
 --Arrumar
 /* Triggers */
