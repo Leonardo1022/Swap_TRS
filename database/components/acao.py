@@ -2,17 +2,17 @@ from database.connection import conectar
 import pandas as pd
 from sqlite3 import Error
 
-def inserir_acao(contrato: int, bolsa: str, ticker: str, quantidade: int, montante: float):
-    sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_quantidade, ac_montante)
-                    VALUES (?, ?, ?, ?, ?)"""
+def inserir_acao(contrato: int, bolsa: str, ticker: str, quantidade: int, montante: float, preco: float):
+    sql_insert = """INSERT INTO Acao(con_id, bo_bolsa, ti_ticker, ac_quantidade, ac_montante, ac_preco)
+                    VALUES (?, ?, ?, ?, ?, ?)"""
     try:
         with conectar() as conn:
-            conn.execute(sql_insert, (contrato, bolsa, ticker, quantidade, montante))
+            conn.execute(sql_insert, (contrato, bolsa, ticker, quantidade, montante, preco))
             conn.commit()
-            print(f"Ação adicionada: {ticker} (quantidade: {quantidade}, montante: {montante})")
+            print(f"Ação adicionada: {ticker} (quantidade: {quantidade}, montante: {montante}, preço: {preco})")
     except Error as e:
-        print(f"Erro ao inserir acao: {e}")
-        print(f"ID:{contrato} Ação: {ticker}, bolsa {bolsa} (quantidade: {quantidade}, montante: {montante})")
+        print(f"Erro em inserir_acao: {e}")
+        print(f"ID:{contrato} Ação: {ticker}, bolsa {bolsa} (quantidade: {quantidade}, montante: {montante}, preço: {preco})")
 
 def selecionar_acao_ticker(ticker: str) -> dict:
     sql_query = "SELECT * FROM Acao WHERE ti_ticker = ?;"
@@ -46,10 +46,10 @@ def selecionar_acoes_contrato(contrato: int) -> pd.DataFrame:
         print(f"Erro ao selecionar acao: {e}")
         return pd.DataFrame()
 """
-Seleciona todas as ações registradas pelo usuário
+Seleciona todas as ações registradas pelo usuário e que estão disponíveis
 """
-def selecionar_acoes():
-    sql_query = "SELECT ti_ticker FROM Acao GROUP BY ti_ticker;"
+def selecionar_acoes_disp():
+    sql_query = "SELECT ti_ticker FROM Acao WHERE ac_quantidade > 0  GROUP BY ti_ticker;"
     try:
         with conectar() as conn:
             df = pd.read_sql_query(sql_query, conn)
@@ -73,7 +73,7 @@ Retorna os primeiros 5 tickers de ação registrados
 """
 def selecionar_acao_primeiros_5_ticker(ticker: str):
     sql = """
-        SELECT a.ac_quantidade, a.ac_montante, a.con_id, a.ti_ticker
+        SELECT a.ac_quantidade, a.ac_montante, a.con_id, a.ti_ticker, a.ac_preco
             FROM Acao a
             JOIN Contrato c 
                 ON a.con_id = c.con_id
@@ -87,12 +87,9 @@ def selecionar_acao_primeiros_5_ticker(ticker: str):
 Atualiza a quantidade na tabela de ação
 
 """
-
-
-def atualizar_acao_quantidade(ticker: str, contrato: int, quantidade: int) -> int:
+def atualizar_acao_quantidade(ticker: str, contrato: int, quantidade: int, montante: float) -> int:
     select_sql = "SELECT ac_id FROM Acao WHERE ti_ticker = ? AND con_id = ?;"
-    update_sql = "UPDATE Acao SET ac_quantidade = ? WHERE ac_id = ?;"
-
+    update_sql = "UPDATE Acao SET ac_quantidade = ?, ac_montante = ? WHERE ac_id = ?;"
     try:
         with conectar() as conn:
             linha = conn.execute(select_sql, (ticker, contrato)).fetchone()
@@ -100,13 +97,13 @@ def atualizar_acao_quantidade(ticker: str, contrato: int, quantidade: int) -> in
                 print(f"Ação {ticker} do contrato {contrato} não encontrada.")
                 return -1
 
-            conn.execute(update_sql, (quantidade, linha["ac_id"]))
+            conn.execute(update_sql, (quantidade, montante, linha["ac_id"]))
             conn.commit()
             print(f"Ação {ticker} (ID={linha["ac_id"]}) atualizada para quantidade {quantidade}")
             return linha["ac_id"]
 
     except Error as e:
-        print(f"Erro ao atualizar a quantidade da acao: {e}")
+        print(f"Erro em atualizar_acao_quantidade: {e}")
         return -1
 
 def atualizar_acao(quantidade: int, montante: float, contrato:int, bolsa: str, ticker: str):

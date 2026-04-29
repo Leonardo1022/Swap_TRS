@@ -1,7 +1,7 @@
 import streamlit as st
 import database as db
+from database import tabela_acumulada
 from database.utils import data_hoje
-import pandas as pd
 
 st.session_state["contrato_total"] = db.selecionar_contratos_id()
 st.session_state["lucro_total"] = db.selecionar_venda_lucro_total()
@@ -42,8 +42,13 @@ for contrato_id in st.session_state["contrato_total"]:
             #Uma coluna de custo, outra de preço e outra de resultado
             df = db.selecionar_resultado_valores(contrato_id)
             df = df.rename(columns={"re_data":"Data", "re_custo":"Custo", "re_lucro":"Lucro", "re_montante":"Montante"})
+            df = df.round(2)
             if df.empty:
                 st.warning("Não foi possível carregar as informações do contrato")
             else:
                 st.write("Tabela de histórico do contrato")
+                if st.toggle("Acumulado", key=f"toggle_acumulado_{contrato_id}"):
+                    df["Custo"] = df["Custo"].cumsum()
+                    df["Lucro"] = df["Lucro"].cumsum()
+
                 st.line_chart(df, width="stretch", x="Data", y_label="Valor")

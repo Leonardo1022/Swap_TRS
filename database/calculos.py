@@ -17,14 +17,16 @@ def calcular_venda(df: pd.DataFrame, quantidade: int, lucro_individual: float) -
 
     for _, linha in df.iterrows():
         qtd_disponivel = linha["ac_quantidade"]
+        montante = linha["ac_montante"]
+        preco_original = linha["ac_preco"]
         if qtd_disponivel >= quantidade:
-            acao_id_int = atualizar_acao_quantidade(ticker, linha["con_id"], qtd_disponivel - quantidade)
-            quantidade = 0
+            acao_id_int = atualizar_acao_quantidade(ticker, linha["con_id"], qtd_disponivel - quantidade, montante - (preco_original * quantidade))
             acao_list.append({acao_id_int: (lucro_individual*quantidade)}) #Dict com o id e lucro na venda
+            quantidade = 0
             break
         else: #Caso o valor de venda seja maior que o registrado por um contrato
             quantidade -= qtd_disponivel
-            acao_id_int = atualizar_acao_quantidade(ticker, linha["con_id"], 0)
+            acao_id_int = atualizar_acao_quantidade(ticker, linha["con_id"], 0, montante - (preco_original * qtd_disponivel))
             acao_list.append({acao_id_int: (lucro_individual*qtd_disponivel)})
 
     if quantidade > 0:
@@ -34,17 +36,55 @@ def calcular_venda(df: pd.DataFrame, quantidade: int, lucro_individual: float) -
         print(f"Venda feita com sucesso")
         return acao_list
 
+def recalcular_resultados(montante: float, contrato: int, data: str):
+    atualizar_resultado_montante(montante, contrato, data)
+    sql_update = """
+                 UPDATE Resultado
+                 SET re_custo = (SELECT con_mont * ( 
+                     ( 
+                         1 + COALESCE((SELECT ind_valor 
+                                       FROM Indexador 
+                                       WHERE ind_indexador = Contrato.con_indexador 
+                                         AND STRFTIME('%Y', ind_data) = STRFTIME('%Y', re_data) 
+                                         AND STRFTIME('%m', ind_data) = STRFTIME('%m', re_data) ), 0) 
+                         ) * EXP(LOG(1 + Contrato.con_spread) / 12) - 1 
+                     ) 
+                                 FROM Contrato 
+                                 WHERE Contrato.con_id = Resultado.con_id LIMIT 1)
+                 WHERE con_id = ? 
+                   AND STRFTIME('%Y', re_data) = ? 
+                   AND STRFTIME('%m', re_data) = ?;
+                 """
+    meses_faltantes = calcular_meses_preencher(contrato) + 1
+    data_inicial = converter_data(data)
+    for mes in range(meses_faltantes):
+        data_atual = data_inicial + relativedelta(months= mes + 1)
+        try:
+            with conectar() as conn:
+                data_ano_str = str(data_atual.year)
+                data_mes_str = f"{data_atual.month:02d}"
+                conn.execute(sql_update, (contrato, data_ano_str, data_mes_str))
+                conn.commit()
+                print(f"Sucesso em atualizar_resultado_custo.\nContrato: {contrato}, Data atual: {data_atual}")
+        except Error as e:
+            print(f"Erro em atualizar_resultado_custo: {e}")
+
+
+
 def inserir_venda_com_acao(quantidade: int, valor: float, data: str, acao_list: list[dict[int, float]]):
     venda_id_int = inserir_venda(quantidade, valor, data)
-    print(acao_list) #Está saindo um valor vazio
+
+    contratos_list = []
     for acao_dict in acao_list:
         for key, valor in acao_dict.items():
-            inserir_acao_venda(key, venda_id_int)
+            inserir_acao_venda(key, venda_id_int) #Key é id de contrato, não de acao
             atualizar_resultado_lucro(valor, key, data)
+            contratos_list.append(key)
     print("Inserção de venda com ação realizada com sucesso")
+    return set(contratos_list)
 
 def preencher_resultados(contrato: int, montante: float, duracao_contrato: int):
-    meses_faltantes = calcular_meses_preencher(contrato)
+    meses_faltantes = calcular_meses_preencher(contrato) + 1
     if meses_faltantes > duracao_contrato:
         meses_faltantes = duracao_contrato
     data_inicial = data_hoje - relativedelta(months=meses_faltantes)
@@ -126,44 +166,22 @@ def inserir_indexador_nome(indexador: str):
     except AttributeError as ae:
         print(f"Erro ao inserir indexadores, o retorno esperado foi de um tipo diferente: {ae}")
 
-# A função está faltando parâmetros e está referenciando a venda, não a compra
-def inserir_custo_mensal(data: str):
-    ven_df = selecionar_venda_data(data)
-    soma_custo_variavel = ven_df.loc["ven_valor"].sum()
-
-    sql_insert = """
-                INSERT INTO Resultado(con_id, re_data, re_custo, re_montante) 
-                VALUES (?, ?, ?, ?);
-                """
-    try:
-        with conectar() as conn:
-            conn.execute(sql_insert, (contrato, data))
-            print(f"Inserido o custo mensal ({data}) do contrato: ({contrato})")
-    except Error as e:
-        print(f"Não foi possível adicionar custo mensal: {e}")
-#Corrigir ou deletar, não faz sentido essa função
-def tipo_movimentacao(e_venda: int, contrato: int, quantidade: int, valor: float, bolsa: str, ticker: str):
-    if e_venda == 1:
-        ""
-        return True
-    elif e_venda == 0:
-        if atualizar_contrato_montante(contrato, valor):
-            if atualizar_acao(quantidade, valor, contrato, bolsa, ticker):
-                return True
-            return False
-        return False
+def calcular_meses_preencher(contrato: int = None, data: str = None) -> int:
+    if data is None:
+        data_str = selecionar_contrato_ultimo_resultado(contrato)
     else:
-        return False
-
-def calcular_meses_preencher(contrato: int) -> int:
-    data_str = selecionar_contrato_ultimo_resultado(contrato)
+        data_str = data
     if data_str != "":
         data_recente_resultado = converter_data(data_str)
         meses_faltantes = data_hoje.month - data_recente_resultado.month + (
                     (data_hoje.year - data_recente_resultado.year) * 12)
         return meses_faltantes
     else:
-        raise ValueError("Não foi possível calcular os meses faltantes")
+        raise ValueError("Erro em calcular_meses_preencher")
+
+def tabela_acumulada(df: pd.DataFrame) -> pd.DataFrame:
+    df["Custo"].cumsum()
+    return df
 
 if __name__ == "__main__":
     inserir_indexador_nome("SELIC")

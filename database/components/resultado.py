@@ -28,12 +28,9 @@ def selecionar_resultado_valores(contrato: int):
         print(f"Erro ao selecionar tabela resultado: {e}")
         return None
 
-def selecionar_resultado_mensal_contrato(contrato: int, data: str):
-    sql_query = """"""
-
 def atualizar_resultado_lucro(lucro: float, contrato: int, data: str):
     sql_update = """
-                 UPDATE Resultado SET re_lucro = re_lucro + ? 
+                 UPDATE Resultado SET re_lucro = re_lucro + ?
                     WHERE con_id = ? 
                       AND STRFTIME('%Y', re_data) = ? 
                       AND STRFTIME('%m', re_data) = ?;
@@ -48,3 +45,16 @@ def atualizar_resultado_lucro(lucro: float, contrato: int, data: str):
             print(f"Adicionado {lucro} em resultado com contrato {contrato}")
     except Error as e:
         print(f"Erro em atualizar_resultado_lucro: {e}")
+
+def atualizar_resultado_montante(montante: float, contrato: int, data: str):
+    sql_update = """
+                 UPDATE Resultado SET re_montante = ? 
+                    WHERE con_id = ? AND re_data > ?;
+                 """
+    try:
+        with conectar() as conn:
+            conn.execute(sql_update, (montante, contrato, data))
+            conn.commit()
+            print(f"Sucesso em atualizar_resultado_montante.\nMontante: {montante}, Contrato: {contrato}, Data: {data}")
+    except Error as e:
+        print(f"Erro em atualizar_resultado_montante: {e}")

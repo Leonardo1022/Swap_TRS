@@ -64,3 +64,25 @@ SELECT coalesce(SUM(v.ven_valor), 0.00) AS lucro_mensal FROM Venda v
 
 SELECT COALESCE(SUM(ven_valor), 0.00) AS total
                    FROM Venda;
+
+ALTER TABLE Acao ADD COLUMN ac_preco REAL;
+
+UPDATE Resultado SET re_montante = 200 WHERE con_id = 11 AND re_data > '2026-02-01';
+
+UPDATE Resultado
+    SET re_custo = (
+        SELECT con_mont * (
+            (
+                1 + COALESCE((
+                    SELECT ind_valor
+                    FROM Indexador
+                    WHERE ind_indexador = Contrato.con_indexador
+                      AND STRFTIME('%Y', ind_data) = STRFTIME('%Y', re_data)
+                      AND STRFTIME('%m', ind_data) = STRFTIME('%m', re_data)
+                ), 0)
+            ) * EXP(LOG(1 + Contrato.con_spread) / 12) - 1
+        )
+        FROM Contrato
+        WHERE Contrato.con_id = Resultado.con_id
+    )
+    WHERE con_id = 11 AND re_data > '2026-02-01';

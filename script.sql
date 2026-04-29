@@ -59,6 +59,7 @@ con_id INTEGER NOT NULL, --UK,FK
 bo_bolsa TEXT NOT NULL, --UK,FK
 ti_ticker TEXT NOT NULL, --UK,FK
 ac_quantidade INTEGER NOT NULL,
+ac_preco REAL NOT NULL, --Preco na compra
 ac_montante REAL NOT NULL, --moeda
 CONSTRAINT fk_Acao_Contrato FOREIGN KEY(con_id)
 REFERENCES Contrato(con_id) ON DELETE CASCADE,
@@ -85,6 +86,7 @@ REFERENCES Venda(ven_id) ON DELETE CASCADE
 );
 --Arrumar
 /* Triggers */
+/*
 CREATE TRIGGER IF NOT EXISTS trg_calcula_venda
     BEFORE UPDATE ON Acao
     FOR EACH ROW
@@ -94,7 +96,7 @@ CREATE TRIGGER IF NOT EXISTS trg_calcula_venda
             THEN
     end;
 
-/*
+
 CREATE TRIGGER IF NOT EXISTS trg_verifica_venda
 BEFORE INSERT ON Venda
 FOR EACH ROW

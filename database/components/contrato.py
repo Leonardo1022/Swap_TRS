@@ -1,7 +1,6 @@
 from database.connection import conectar
 from database.utils import converter_data
 from sqlite3 import Error
-import pandas as pd
 
 def inserir_contrato(montante: float, data: str, duracao: int, indexador: str, spread: float):
     sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_duracao, con_indexador, con_spread)

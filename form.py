@@ -37,13 +37,14 @@ def st_enviar_form(montante_total: float):
     db.preencher_resultados(contrato_id_int, montante_total, st.session_state["duracao_ni"])
 
     for t in st.session_state["ticker_ms"]:
-        db.inserir_acao(contrato_id_int, bolsa_str, t, st.session_state[f"qtd_compra_{t}"], (st.session_state[f"valor_{t}"]*st.session_state[f"qtd_compra_{t}"]))
+        db.inserir_acao(contrato_id_int, bolsa_str, t, st.session_state[f"qtd_compra_{t}"], (st.session_state[f"valor_{t}"]*st.session_state[f"qtd_compra_{t}"]), st.session_state[f"valor_{t}"])
     return True
 
 #Começo
 st.title("Contratos")
 st.space("small")
 
+st.datetime_input("a")
 #e_venda = st.toggle("Venda")
 
 enviado = False
@@ -97,7 +98,7 @@ with st.expander("Vender"):
         st.stop()
     #tipo = st.radio("Selecione o tipo de movimentação", options=["Compra", "Venda"], horizontal=True)
     #contrato_id = st.selectbox("Selecione o contrato", options=contratos_id, key="contrato_id")
-    acao_list = db.selecionar_acoes()
+    acao_list = db.selecionar_acoes_disp()
     if not acao_list:
         st.warning("Você não possui ações cadastradas")
         st.stop()
@@ -118,13 +119,13 @@ with st.expander("Vender"):
         acao_valor = st.number_input(f"Selecione o valor de venda da ação {acao}(em {bolsa_moeda_str})", key=f"valor_venda_{acao}", min_value=0.00,
                                        placeholder="",
                                        value=float(f"{acao_valor_atual:.2f}"))
-        acao_qtd = st.number_input(f"Selecione a quantidade da ação {acao}", key=f"qtd_venda_{acao}", min_value=0, max_value=acao_qtd_max)
+        acao_qtd = st.number_input(f"Selecione a quantidade da ação {acao} (Quantidade disponível: {acao_qtd_max})", key=f"qtd_venda_{acao}", min_value=0, max_value=acao_qtd_max)
         montante = acao_valor * acao_qtd
         taxa_valor = st.number_input("Selecione o valor da taxa de transação (se houver)", key=f"taxa_unica_{acao}", min_value=0.00, placeholder="")
         if bolsa_moeda_str not in valor_dict.keys():
-            valor_dict[bolsa_moeda_str] = acao_valor + taxa_valor
+            valor_dict[bolsa_moeda_str] = montante + taxa_valor
         else:
-            valor_dict[bolsa_moeda_str] += acao_valor + taxa_valor
+            valor_dict[bolsa_moeda_str] += montante + taxa_valor
         st.caption(f"Valor do montante da ação {acao}: {bolsa_info.get("bo_moeda", "R$")} {montante:.2f}")
         st.space("small")
     print(valor_dict)
@@ -139,6 +140,7 @@ with st.expander("Vender"):
     for key, valor in valor_dict.items():
         st.caption(f"{key} {valor:.2f}")
 
+    contratos_totais_list = []
     if st.button("Registrar venda"):
         for acao in st.session_state["acao_ms"]:
             acao_venda_float = st.session_state[f"valor_venda_{acao}"]
@@ -147,7 +149,14 @@ with st.expander("Vender"):
             bolsa_venda_dict = db.selecionar_bolsa(acao)
             bolsa_venda_str = bolsa_venda_dict.get("bo_bolsa", "")
             #Insere uma venda para cada ação
-            db.inserir_venda_com_acao(st.session_state[f"qtd_venda_{acao}"], acao_venda_float, data_ven_str, acao_venda_list)
+            contratos_set = db.inserir_venda_com_acao(st.session_state[f"qtd_venda_{acao}"], acao_venda_float, data_ven_str, acao_venda_list)
+            contratos_totais_list.extend(contratos_set)
 
+        contratos_totais_set = set(contratos_totais_list)
+        for contrato in contratos_totais_set:
+            acao_df = db.selecionar_acoes_contrato(contrato)
+            montante = acao_df["ac_montante"].sum()
+            db.recalcular_resultados(montante, contrato, data_ven_str)
         st.success("Venda registrada com sucesso")
-        #st.error("Não foi possível fazer a venda")
+
+#acao_venda_list: lista com uma dict contendo contrato(key) e quantidade total de venda(valor)
