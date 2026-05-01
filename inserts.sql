@@ -86,3 +86,5 @@ UPDATE Resultado
         WHERE Contrato.con_id = Resultado.con_id
     )
     WHERE con_id = 11 AND re_data > '2026-02-01';
+
+ALTER TABLE ticker ADD COLUMN ti_empresa TEXT;

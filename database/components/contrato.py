@@ -2,18 +2,18 @@ from database.connection import conectar
 from database.utils import converter_data
 from sqlite3 import Error
 
-def inserir_contrato(montante: float, data: str, duracao: int, indexador: str, spread: float):
+def inserir_contrato(montante: int, data: str, duracao: int, indexador: str, spread: int) -> int:
     sql_insert = """INSERT INTO Contrato(con_mont, con_abertura, con_duracao, con_indexador, con_spread)
                     VALUES (?, ?, ?, ?, ?)"""
     try:
         with conectar() as conn:
             cursor = conn.execute(sql_insert, (montante, data, duracao, indexador, spread))
             conn.commit()
-            print(f"Contrato adicionado: ID {cursor.lastrowid}, data: {data}, duração: {duracao}, indexador: {indexador}, spread: {spread}")
+            print(f"Contrato adicionado: ID {cursor.lastrowid}, data: {data}, duração: {duracao}, indexador: {indexador}, spread: {spread/1000000}")
             return cursor.lastrowid
     except Error as e:
         print(f"Erro ao inserir contrato: {e}")
-        return None
+        return -1
 """
 Recebe o id do contrato
 Retorna uma linha de Contrato em formato de dict, pode retornar uma dict vazia
@@ -67,7 +67,7 @@ Recebe o id do contrato e a data
 Retorna o custo mensal da data em forma de float, se estiver vazia retorna -1
 Se erro retorna -1
 """
-def selecionar_contrato_custo_mensal(contrato: int, data: str) -> float:
+def selecionar_contrato_custo_mensal(contrato: int, data: str) -> int:
     sql_query = """
                  SELECT con_mont * (((1 + (
                      SELECT ind_valor FROM Indexador 
@@ -84,7 +84,7 @@ def selecionar_contrato_custo_mensal(contrato: int, data: str) -> float:
             linha = conn.execute(sql_query, (data_ano_str, data_mes_str, contrato)).fetchone()
             if linha is None:
                 return -1
-            return linha["custo_mensal"] if linha["custo_mensal"] != 0.0 else -1
+            return linha["custo_mensal"] if linha["custo_mensal"] != 0 else -1
     except Error as e:
         print(f"Erro ao selecionar custo mensal: {e}")
         return -1
@@ -92,9 +92,9 @@ def selecionar_contrato_custo_mensal(contrato: int, data: str) -> float:
 Retorna em float o custo mensal esperado de todos os contratos, caso não tenha nenhum retorna 0.00
 Se erro retorna None
 """
-def selecionar_contratos_custo_mensal():
+def selecionar_contratos_custo_mensal() -> int:
     sql_query = """
-                SELECT SUM(c.con_mont * (c.con_spread + i.ind_valor)) AS custo_total_mensal 
+                SELECT coalesce(SUM(c.con_mont * (c.con_spread + i.ind_valor)), 0) AS custo_total_mensal 
                 FROM Contrato c 
                 JOIN Indexador i
                 ON c.con_indexador = i.ind_indexador
@@ -102,18 +102,18 @@ def selecionar_contratos_custo_mensal():
     try:
         with conectar() as conn:
             linha = conn.execute(sql_query).fetchone()
-            return linha["custo_total_mensal"] if linha else 0.00
+            return linha["custo_total_mensal"] if linha else -1
     except Error as e:
         print(f"Erro ao selecionar custo: {e}")
-        return None
+        return -1
 
-def selecionar_contrato_lucro_mensal(contrato: int, data: str):
+def selecionar_contrato_lucro_mensal(contrato: int, data: str) -> int:
     sql_query_com_resultado = """
-                SELECT SUM(re_lucro) AS lucro_mensal
+                SELECT coalesce(SUM(re_lucro), 0) AS lucro_mensal
                 FROM Resultado WHERE con_id = ? AND re_data = ?
                 """
     sql_query_sem_resultado = """
-                              SELECT SUM(ven_valor) FROM Venda
+                              SELECT coalesce(SUM(ven_valor), 0) FROM Venda
                               WHERE STRFTIME('%m', ven_data) = ? 
                               AND STRFTIME('%Y', ven_data) = ?;
                               """
@@ -127,12 +127,12 @@ def selecionar_contrato_lucro_mensal(contrato: int, data: str):
                 data_mes_str = f"{data_convertida.month:02d}"
                 data_ano_str = str(data_convertida.year)
                 linha = conn.execute(sql_query_sem_resultado, (contrato, data_mes_str, data_ano_str)).fetchone()
-                return linha["lucro_mensal"] if linha else 0.00
+                return linha["lucro_mensal"] if linha else -1
     except Error as e:
         print(f"Erro ao selecionar lucro mensal: {e}")
-        return 0
+        return -1
 
-def atualizar_contrato_montante(contrato: int, montante:float):
+def atualizar_contrato_montante(contrato: int, montante:int) -> bool:
     sql_update = "UPDATE Contrato SET con_mont = con_mont + ? WHERE con_id = ?;"
     try:
         with conectar() as conn:
@@ -142,6 +142,4 @@ def atualizar_contrato_montante(contrato: int, montante:float):
             return True
     except Error as e:
         print(f"Erro ao atualizar montante do contrato: {e}")
-
-if __name__ == "__main__":
-    print(selecionar_contrato_ultimo_resultado(13))
+        return False

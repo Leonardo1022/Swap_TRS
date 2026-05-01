@@ -5,13 +5,19 @@ from calendar import monthrange
 import requests
 
 data_hoje = datetime.today()
+ESCALA = 1_000_000 # Padrão adotado de 10^6
 
+def multiplicar(a: int, b: int) -> int:
+    return round(a * b / ESCALA)
+
+def dividir(a: int, b: int) -> int:
+    return round(a * ESCALA / b)
 """
 Calcula quantos contratos serão afetados pela venda para o modelo FIFO.
 Recebe o df com os dados da consulta feita pelo método selecionar_acao_primeiros_5_ticker().
 Retorna os contratos e valores de venda.
 """
-def calcular_venda(df: pd.DataFrame, quantidade: int, lucro_individual: float) -> list[dict[int, float]]:
+def calcular_venda(df: pd.DataFrame, quantidade: int, lucro_individual: int) -> list[dict[int, int]]:
     ticker = df["ti_ticker"].iloc[0]
     acao_list = []
 

@@ -1,94 +1,101 @@
+import pandas as pd
 import streamlit as st
 import database as db
 import yfinance as yf
 import datetime as dt
 from datetime import datetime
+from decimal import Decimal
 
 @st.cache_data()
 def inicializacao():
-    lista_bolsa = db.selecionar_bolsas()
-    print(lista_bolsa)
-    return lista_bolsa
+    bolsa_l = db.selecionar_bolsas()
+    bolsa_str_l = [bolsa["bo_bolsa"] for bolsa in bolsa_l]
+    indexadores_l = db.selecionar_indexadores()
+    return bolsa_l, bolsa_str_l, indexadores_l
 
-bolsa_list = inicializacao()
+if "init_form" not in st.session_state:
+    st.session_state.init_form = True
+    if "bolsa_selecionada" in st.session_state:
+        del st.session_state.bolsa_selecionada
+        del st.session_state.bolsa
+        del st.session_state.datahora_selecionada
 
-@st.cache_data(show_spinner=False, ttl="6h")
-def preco_acao_data(ticker: str, data: str) -> float:
-    if ticker is not None or "":
-        try:
-            ticker_obj = yf.Ticker(ticker)
-            data_ref = datetime.strptime(data, "%Y-%m-%d")
-            data_ini = data_ref - dt.timedelta(days=10) #Busca até 10 dias anteriores ao dia passado
-            df = ticker_obj.history(start=data_ini, end=data_ref+dt.timedelta(days=1))
-            if df.empty:
-                print(f"Ticker {ticker} inexistente")
-                return 0.0
-            preco_acao_float = float(df["Close"].dropna().iloc[-1]) #Pega o preço mais recente disponível
-            print(f"Preço da ação {ticker}: {preco_acao_float if preco_acao_float != 0.00 else '0.00'} no dia {data}")
-            return preco_acao_float
-        except ValueError as ve:
-            print(ve)
-            return 0.00
-    else:
-        return 0.00
+bolsa_list, bolsa_str_list, indexadores_list = inicializacao()
 
-def st_enviar_form(montante_total: float):
-    contrato_id_int = db.inserir_contrato(montante_total, data_ab_str, st.session_state["duracao_ni"], indexador_str, spread_float)
-    db.preencher_resultados(contrato_id_int, montante_total, st.session_state["duracao_ni"])
+def st_enviar_form(mt: Decimal):
+    contrato_id_int = db.inserir_contrato(mt, data_str, st.session_state["duracao_ni"], indexador_str, spread_str)
+    db.preencher_resultados(contrato_id_int, mt, st.session_state["duracao_ni"])
 
-    for t in st.session_state["ticker_ms"]:
-        db.inserir_acao(contrato_id_int, bolsa_str, t, st.session_state[f"qtd_compra_{t}"], (st.session_state[f"valor_{t}"]*st.session_state[f"qtd_compra_{t}"]), st.session_state[f"valor_{t}"])
+    for t in st.session_state.tickers_selecionados:
+        db.inserir_acao(contrato_id_int, bolsa_str, t, st.session_state[f"qtd_compra_{t["ti_ticker"]}"], (st.session_state[f"valor_{t["ti_ticker"]}"]*st.session_state[f"qtd_compra_{t}"]), st.session_state[f"valor_{t["ti_ticker"]}"])
+    if "init_form" in st.session_state:
+        del st.session_state.init_form
     return True
 
 #Começo
 st.title("Contratos")
 st.space("small")
 
-st.datetime_input("a")
-#e_venda = st.toggle("Venda")
+if "tickers_selecionados" in st.session_state and st.session_state.tickers_selecionados != []:
+    st.write(st.session_state.tickers_selecionados)
 
 enviado = False
 with st.expander("Comprar"):
-    st.date_input("Coloque a data de início", key="data_di", format="DD/MM/YYYY")
-    data_ab_str = st.session_state["data_di"].strftime("%Y-%m-%d")
-    bolsa_str = st.selectbox("Selecione a Bolsa", bolsa_list, key="bolsa_sb", index=None, placeholder="")
+    datahora = st.datetime_input("Coloque a data de início", key="datahora_dti", format="DD/MM/YYYY",
+                                 value=(None if "init_stockView" not in st.session_state
+                                    else st.session_state.datahora_selecionada), disabled="init_stockView" in st.session_state)
+    if datahora:
+        data_str = datahora.strftime('%Y-%m-%d')
 
-    lista_ticker = db.selecionar_tickers(bolsa_str)
-    #print(f"Esta é a lista de ticker {lista_ticker}")
+    bolsa_str = st.selectbox("Selecione a Bolsa", bolsa_str_list, key="bolsa_sb",
+                             placeholder="", index=(None if "init_stockView" not in st.session_state
+                                else bolsa_str_list.index(st.session_state.bolsa_selecionada)), disabled="init_stockView" in st.session_state)
+    # Página de ações
+    if bolsa_str:
+        if st.button("Selecionar ações"):
+            # Reinicia o state da página para a configuração inicial
+            if "init_stockView" in st.session_state:
+                del st.session_state.init_stockView
+            st.session_state.bolsa_selecionada = bolsa_str
+            st.session_state.datahora_selecionada = datahora
+            st.switch_page("pages/stockView.py")
 
-    st.multiselect("Selecione o Ticker", lista_ticker, key="ticker_ms", placeholder="", accept_new_options=True, disabled=(lista_ticker is [] or bolsa_str is None))
-    for ticker in st.session_state["ticker_ms"]:
-        bolsa_dict = db.selecionar_bolsa(bolsa_str)
-        ticker_sufixo_str = bolsa_dict["bo_sufixo"]
-        valor_acao_atual = preco_acao_data(ticker+ticker_sufixo_str, data_ab_str)
-        qtd = st.number_input(f"Quantidade de ações de {ticker}", min_value=0, key=f"qtd_compra_{ticker}")
-        valor_acao = st.number_input(f"Valor individual da ação {ticker}", min_value=0.00, key=f"valor_{ticker}", value=valor_acao_atual)
-        montante = valor_acao * qtd
-        st.caption(f"Valor do montante da ação {ticker}: {bolsa_dict["bo_moeda"]} {montante:.2f}")
+    if "tickers_selecionados" in st.session_state:
+        print(f"tickers: {st.session_state.tickers_selecionados}")
+        for ticker in st.session_state.tickers_selecionados:
+            bolsa_dict = st.session_state.bolsa
+            ticker_sufixo_str = bolsa_dict["bo_sufixo"]
+            qtd = st.number_input(f"Quantidade de ações de {ticker['ti_ticker']}", min_value=0, key=f"qtd_compra_{ticker['ti_ticker']}")
+            valor_acao = st.number_input(f"Valor individual da ação {ticker['ti_ticker']}", min_value=0.00, key=f"valor_{ticker['ti_ticker']}", value=float(round(ticker["valor"], 2)))
+            montante = valor_acao * qtd
+            st.caption(f"Valor do montante da ação {ticker['ti_ticker']}: {bolsa_dict["bo_moeda"]} {montante:.2f}")
 
-    st.number_input("Duração do contrato em meses", min_value=1, key="duracao_ni")
-    st.space("small")
-    st.write("Taxas")
-    indexado_list = db.selecionar_indexadores()
-    indexador_str = st.selectbox("Selecione o indexador", indexado_list, key="indexador_sb", index=None, placeholder="")
-    spread_float = st.number_input("Spread em (%)", min_value=0.0, key="spread_ni") / 100
-    taxa_unica = st.number_input("Selecione o valor da taxa de transação (se houver)", min_value=0.00, placeholder="", key="taxa_ni")
+        st.number_input("Duração do contrato em meses", min_value=1, key="duracao_ni")
 
-    montante_total = 0.00
-    for ticker in st.session_state["ticker_ms"]:
-        montante_total += (st.session_state[f"qtd_compra_{ticker}"] * st.session_state[f"valor_{ticker}"])
-    #print(f"montante total: {montante_total}")
+        st.space("small")
+        st.write("Taxas")
 
-    valor_final = montante_total + taxa_unica
-    valor_indexador = db.selecionar_indexador(indexador_str, data_ab_str)
-    taxa_mensal = montante_total * (valor_indexador + spread_float)
-    st.caption(f"Valor final: {valor_final:.2f}")
-    st.caption(f"Taxa mensal esperada: {taxa_mensal:.2f} de {montante_total:.2f} (com taxa {indexador_str} a {valor_indexador*100:.2f}% a.m)")
-    if st.button("Adicionar", disabled=(st.session_state["spread_ni"] == 0)):
-        if st_enviar_form(montante_total):
-            st.success("Compra registrada com sucesso!")
-        else:
-            st.error("Não foi registrado nenhum ticker!")
+        indexador_str = st.selectbox("Selecione o indexador", indexadores_list, key="indexador_sb", index=None, placeholder="")
+        spread_str = str(st.number_input("Spread em (%)", min_value=0.0, key="spread_ni") / 100)
+        taxa_unica_str = str(st.number_input("Selecione o valor da taxa de transação (se houver)", min_value=0.00, placeholder="", key="taxa_ni"))
+
+        montante_total = Decimal("0.00")
+        for ticker in st.session_state.tickers_selecionados:
+            montante_total += (st.session_state[f"qtd_compra_{ticker['ti_ticker']}"] * Decimal(st.session_state[f"valor_{ticker['ti_ticker']}"]))
+            print(f"montante total: {montante_total}")
+
+        valor_final = montante_total + Decimal(taxa_unica_str)
+        valor_indexador = Decimal(db.selecionar_indexador(indexador_str, data_str))
+        taxa_mensal = montante_total * (valor_indexador + Decimal(spread_str))
+        if valor_final != 0.0:
+            st.caption(f"Valor final: {valor_final:.2f}")
+        if taxa_mensal != 0.0:
+            st.caption(f"Taxa mensal esperada: {taxa_mensal:.2f} de {montante_total:.2f} (com taxa {indexador_str} a {valor_indexador*100:.2f}% a.m)")
+        if st.button("Adicionar", disabled=(taxa_mensal != 0.0)):
+            if st_enviar_form(montante_total):
+                st.success("Compra registrada com sucesso!")
+            else:
+                st.error("Não foi registrado nenhum ticker!")
 
 
 with st.expander("Vender"):
@@ -144,8 +151,10 @@ with st.expander("Vender"):
     if st.button("Registrar venda"):
         for acao in st.session_state["acao_ms"]:
             acao_venda_float = st.session_state[f"valor_venda_{acao}"]
-            df = db.selecionar_acao_primeiros_5_ticker(acao)
+            tickers_5_list = db.selecionar_acao_primeiros_5_ticker(acao)
+            df = pd.DataFrame(tickers_5_list)
             acao_venda_list = db.calcular_venda(df, st.session_state[f"qtd_venda_{acao}"], acao_venda_float)
+            #ARRUMAR: A função recebe o nome da bolsa, não o ticker
             bolsa_venda_dict = db.selecionar_bolsa(acao)
             bolsa_venda_str = bolsa_venda_dict.get("bo_bolsa", "")
             #Insere uma venda para cada ação
